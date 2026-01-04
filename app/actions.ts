@@ -1,9 +1,9 @@
 "use server";
 
 import { createClient } from "@supabase/supabase-js";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import path from "path";
+import { createSupabaseClient } from "@/lib/mcp/clients/supabase";
+import { createMistralClient } from "@/lib/mcp/clients/mistral";
+import { Orchestrator } from "@/lib/mcp/orchestrator";
 
 // Types
 export interface Agent {
@@ -35,58 +35,22 @@ export async function executeOrchestration(
     mode: "auto" | "manual",
     selectedAgentIds: string[]
 ): Promise<string> {
-    const serverPath = path.join(process.cwd(), "server/mcp/dist/index.js");
-
-    const transport = new StdioClientTransport({
-        command: "node",
-        args: [serverPath],
-        env: {
-            ...process.env,
-            // Pass necessary env vars to the MCP server process
-            SUPABASE_URL: process.env.SUPABASE_URL || "",
-            SUPABASE_KEY: process.env.SUPABASE_KEY || "",
-            MISTRAL_API_KEY: process.env.MISTRAL_API_KEY || ""
-        }
-    });
-
-    const client = new Client(
-        {
-            name: "0rca_chat-client",
-            version: "1.0.0",
-        },
-        {
-            capabilities: {},
-        }
-    );
-
     try {
-        await client.connect(transport);
+        // Direct In-Process Execution for Vercel Compatibility
+        const supabase = createSupabaseClient();
+        const mistral = createMistralClient();
+        const orchestrator = new Orchestrator(supabase, mistral);
 
-        const result: any = await client.callTool({
-            name: "execute_orchestration",
-            arguments: {
-                prompt,
-                mode,
-                selectedAgentIds,
-            },
+        const result = await orchestrator.execute({
+            prompt,
+            mode,
+            selectedAgentIds
         });
 
-        const content = result.content[0];
-        if (content.type === "text") {
-            return content.text;
-        }
+        return result;
 
-        return "No text response received from orchestration.";
     } catch (error: any) {
         console.error("Orchestration error:", error);
         return `Error: ${error.message}`;
-    } finally {
-        // Close connection if library supports it or just let process die
-        // The SDK doesn't always have an explicit 'close' on Client, but transport can be closed.
-        try {
-            await transport.close();
-        } catch (e) {
-            // ignore
-        }
     }
 }
