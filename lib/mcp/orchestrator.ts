@@ -178,7 +178,9 @@ User Task: "${prompt}"`
         return Array.isArray(content) ? content.join("") : (content || "No response generated.");
     }
 
-    private async executeAgent(agent: Agent, task: string): Promise<string> {
+    private async executeAgent(agent: Agent, task: string | any): Promise<string> {
+        // Ensure task is a string, even if the LLM hallucinated an object structure
+        const safeTask = typeof task === 'string' ? task : JSON.stringify(task);
         const agentName = agent.name.toLowerCase();
 
         // 1. Weather Agent Implementation
@@ -193,11 +195,11 @@ User Task: "${prompt}"`
                     model: "mistral-small-latest",
                     messages: [
                         { role: "system", content: "Extract the city name from the user request. Return ONLY the city name." },
-                        { role: "user", content: task }
+                        { role: "user", content: safeTask }
                     ]
                 });
                 const content = locationResp.choices?.[0]?.message?.content;
-                const city = (typeof content === 'string' ? content.trim() : task);
+                const city = (typeof content === 'string' ? content.trim() : safeTask);
 
                 // Call wttr.in
                 const response = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=3`);
@@ -216,7 +218,7 @@ User Task: "${prompt}"`
                 model: "mistral-small-latest",
                 messages: [
                     { role: "system", content: "You are a salty pirate captain. Answer the user's request in thick pirate speak. Arrr!" },
-                    { role: "user", content: task }
+                    { role: "user", content: safeTask }
                 ]
             });
             const content = response.choices?.[0]?.message?.content;
@@ -229,7 +231,7 @@ User Task: "${prompt}"`
             model: "mistral-small-latest",
             messages: [
                 { role: "system", content: `You are the '${agent.name}' agent. Description: ${agent.description || "Helpful assistant"}.` },
-                { role: "user", content: task }
+                { role: "user", content: safeTask }
             ]
         });
 
