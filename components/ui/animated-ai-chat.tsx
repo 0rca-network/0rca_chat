@@ -49,6 +49,12 @@ import {
 } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
+import { getAgents, executeOrchestration } from "@/app/actions"
+
+interface Message {
+    role: "user" | "assistant";
+    content: string;
+}
 
 
 interface UseAutoResizeTextareaProps {
@@ -172,16 +178,7 @@ interface Agent {
     description: string;
 }
 
-const AVAILABLE_AGENTS: Agent[] = [
-    { id: "planner", name: "Planner", icon: Layers, description: "Structure complex tasks" },
-    { id: "coder", name: "Coder", icon: Code2, description: "Write and review code" },
-    { id: "researcher", name: "Researcher", icon: Globe, description: "Gather information" },
-    { id: "designer", name: "Designer", icon: Layout, description: "UI/UX design decisions" },
-    { id: "security", name: "Security", icon: Shield, description: "Security audit" },
-    { id: "db_admin", name: "DB Admin", icon: Database, description: "Database optimization" },
-    { id: "qa", name: "QA Tester", icon: Terminal, description: "Test & Verification" },
-    { id: "copywriter", name: "Writer", icon: MessageSquare, description: "Content generation" },
-];
+const AVAILABLE_AGENTS: Agent[] = [];
 
 export function AnimatedAIChat() {
     const [value, setValue] = useState("");
@@ -204,6 +201,26 @@ export function AnimatedAIChat() {
     const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
     const [isAgentDialogOpen, setIsAgentDialogOpen] = useState(false);
 
+    // Dynamic State
+    const [agents, setAgents] = useState<Agent[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
+
+    useEffect(() => {
+        async function loadAgents() {
+            try {
+                const fetched = await getAgents();
+                // Map to UI format with default icon
+                const uiAgents = fetched.map(a => ({
+                    ...a,
+                    icon: Bot // Default icon
+                }));
+                setAgents(uiAgents);
+            } catch (e) {
+                console.error("Failed to load agents", e);
+            }
+        }
+        loadAgents();
+    }, []);
 
     const commandSuggestions: CommandSuggestion[] = [
         {
@@ -317,17 +334,36 @@ export function AnimatedAIChat() {
         }
     };
 
-    const handleSendMessage = () => {
-        if (value.trim()) {
-            startTransition(() => {
-                setIsTyping(true);
-                setTimeout(() => {
-                    setIsTyping(false);
-                    setValue("");
-                    adjustHeight(true);
-                }, 3000);
-            });
+    const handleSendMessage = async () => {
+        if (!value.trim()) return;
+
+        // Validation for Manual Mode
+        if (orchestratorMode === 'manual' && selectedAgents.length === 0) {
+            alert("Please select at least one agent for Manual Swarm mode.");
+            setIsAgentDialogOpen(true);
+            return;
         }
+
+        const currentPrompt = value;
+        setValue("");
+        adjustHeight(true);
+        setMessages(prev => [...prev, { role: "user", content: currentPrompt }]);
+        setIsTyping(true);
+
+        startTransition(async () => {
+            try {
+                const response = await executeOrchestration(
+                    currentPrompt,
+                    orchestratorMode as "auto" | "manual",
+                    selectedAgents
+                );
+                setMessages(prev => [...prev, { role: "assistant", content: response }]);
+            } catch (error) {
+                setMessages(prev => [...prev, { role: "assistant", content: "Error executing request." }]);
+            } finally {
+                setIsTyping(false);
+            }
+        });
     };
 
     const handleAttachFile = () => {
@@ -371,32 +407,59 @@ export function AnimatedAIChat() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, ease: "easeOut" }}
                 >
-                    <div className="text-center space-y-3">
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2, duration: 0.5 }}
-                            className="inline-block"
-                        >
-                            <h1 className="text-3xl font-medium tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white/90 to-white/40 pb-1">
-                                How can I help today?
-                            </h1>
+                    {messages.length === 0 ? (
+                        <div className="text-center space-y-3">
                             <motion.div
-                                className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                                initial={{ width: 0, opacity: 0 }}
-                                animate={{ width: "100%", opacity: 1 }}
-                                transition={{ delay: 0.5, duration: 0.8 }}
-                            />
-                        </motion.div>
-                        <motion.p
-                            className="text-sm text-white/40"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.3 }}
-                        >
-                            Type a command or ask a question
-                        </motion.p>
-                    </div>
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2, duration: 0.5 }}
+                                className="inline-block"
+                            >
+                                <h1 className="text-3xl font-medium tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white/90 to-white/40 pb-1">
+                                    How can I help today?
+                                </h1>
+                                <motion.div
+                                    className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                                    initial={{ width: 0, opacity: 0 }}
+                                    animate={{ width: "100%", opacity: 1 }}
+                                    transition={{ delay: 0.5, duration: 0.8 }}
+                                />
+                            </motion.div>
+                            <motion.p
+                                className="text-sm text-white/40"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.3 }}
+                            >
+                                Type a command or ask a question
+                            </motion.p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 mb-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                            {messages.map((msg, idx) => (
+                                <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={cn(
+                                        "p-4 rounded-2xl text-sm leading-relaxed",
+                                        msg.role === "assistant"
+                                            ? "bg-white/[0.05] border border-white/10 text-white/90"
+                                            : "bg-violet-500/10 border border-violet-500/20 text-white/90 ml-auto max-w-[80%]"
+                                    )}
+                                >
+                                    {msg.role === "assistant" && (
+                                        <div className="flex items-center gap-2 mb-2 text-xs text-white/50 uppercase tracking-wider font-semibold">
+                                            <Bot className="w-3 h-3" />
+                                            <span>Orchestrator</span>
+                                        </div>
+                                    )}
+                                    <div className="whitespace-pre-wrap font-mono">{msg.content}</div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    )}
+
 
                     <motion.div
                         className="relative backdrop-blur-2xl bg-white/[0.02] rounded-2xl border border-white/[0.05] shadow-2xl"
@@ -451,7 +514,7 @@ export function AnimatedAIChat() {
                                                 No agents selected
                                             </div>
                                         ) : (
-                                            AVAILABLE_AGENTS.filter(a => selectedAgents.includes(a.id)).map(agent => (
+                                            agents.filter(a => selectedAgents.includes(a.id)).map(agent => (
                                                 <div key={agent.id} className="flex-shrink-0 flex flex-col items-center gap-2">
                                                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 border border-white/10 flex items-center justify-center">
                                                         <agent.icon className="w-8 h-8 text-white/80" />
@@ -465,7 +528,7 @@ export function AnimatedAIChat() {
                                     {/* Agent Grid */}
                                     <div className="flex-1 overflow-y-auto pr-2">
                                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                            {AVAILABLE_AGENTS.map((agent) => {
+                                            {agents.map((agent) => {
                                                 const isSelected = selectedAgents.includes(agent.id);
                                                 return (
                                                     <div
