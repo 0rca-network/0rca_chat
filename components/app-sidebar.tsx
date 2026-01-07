@@ -39,6 +39,7 @@ import {
     SidebarMenuSubButton,
     SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
+import { WalletConnectButton } from "@/components/wallet-connect"
 
 // Sample data to popuplate the sidebar
 const data = {
@@ -177,6 +178,9 @@ export function AppSidebar() {
             </SidebarContent>
             <SidebarFooter>
                 <SidebarMenu>
+                    <SidebarMenuItem>
+                        <WalletConnectButton />
+                    </SidebarMenuItem>
                     <SidebarMenuItem>
                         <SidebarMenuButton className="text-white/70 hover:text-white hover:bg-white/10">
                             <Settings2 />
