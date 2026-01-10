@@ -1,45 +1,22 @@
 "use client"
 
-import * as React from "react"
-import Image from "next/image"
+import React, { useState } from "react"
+import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar"
 import {
     BookOpen,
     Bot,
-    Command,
     Compass,
     Frame,
-    History,
-    LifeBuoy,
-    Map,
-    MessageSquare,
     MessageSquarePlus,
     MoreHorizontal,
     PieChart,
-    Pin,
-    Send,
     Settings2,
-    SquareTerminal,
-    Star,
-    Trash2,
 } from "lucide-react"
-
-import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarGroup,
-    SidebarGroupContent,
-    SidebarGroupLabel,
-    SidebarHeader,
-    SidebarMenu,
-    SidebarMenuAction,
-    SidebarMenuButton,
-    SidebarMenuItem,
-    SidebarMenuSub,
-    SidebarMenuSubButton,
-    SidebarMenuSubItem,
-} from "@/components/ui/sidebar"
+import Image from "next/image"
 import { WalletConnectButton } from "@/components/wallet-connect"
+import { cn } from "@/lib/utils"
+import Link from "next/link"
+import { motion } from "framer-motion"
 
 // Sample data to popuplate the sidebar
 const data = {
@@ -47,17 +24,17 @@ const data = {
         {
             title: "Project Architecture",
             url: "#",
-            icon: Frame,
+            icon: <Frame className="size-5 flex-shrink-0" />,
         },
         {
             title: "Marketing Campaign",
             url: "#",
-            icon: PieChart,
+            icon: <PieChart className="size-5 flex-shrink-0" />,
         },
         {
             title: "Personal Notes",
             url: "#",
-            icon: BookOpen,
+            icon: <BookOpen className="size-5 flex-shrink-0" />,
         },
     ],
     recent: [
@@ -76,119 +53,138 @@ const data = {
             url: "#",
             date: "5h ago",
         },
-        {
-            title: "Travel Plans",
-            url: "#",
-            date: "Yesterday",
-        },
-        {
-            title: "New Feature Idea",
-            url: "#",
-            date: "2 days ago",
-        },
     ],
 }
 
 export function AppSidebar() {
+    const [open, setOpen] = useState(false)
+
     return (
-        <Sidebar variant="inset" collapsible="icon" className="bg-black border-r border-white/10 text-white">
-            <SidebarHeader>
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild className="hover:bg-white/10 active:bg-white/15 text-white file:text-white">
-                            <a href="#" className="flex items-center justify-start pl-2">
-                                <Image
-                                    src="/orca_text-Photoroom.svg"
-                                    alt="0rca Logo"
-                                    width={280}
-                                    height={80}
-                                    className="h-20 w-auto object-contain"
-                                    priority
+        <Sidebar open={open} setOpen={setOpen}>
+            <SidebarBody className="justify-between gap-10 bg-black/95 border-r border-white/10 !px-4">
+                <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
+                    {open ? <Logo /> : <LogoIcon />}
+
+                    <div className="mt-8 flex flex-col gap-2">
+                        <SidebarLink
+                            link={{
+                                label: "New Chat",
+                                href: "#",
+                                icon: <MessageSquarePlus className="text-violet-400 h-5 w-5 flex-shrink-0" />,
+                            }}
+                            className="bg-violet-500/10 border border-violet-500/20 rounded-lg hover:bg-violet-500/20 transition-colors"
+                        />
+                        <SidebarLink
+                            link={{
+                                label: "Discover",
+                                href: "#",
+                                icon: <Compass className="text-white/70 h-5 w-5 flex-shrink-0" />,
+                            }}
+                        />
+                        <SidebarLink
+                            link={{
+                                label: "Library",
+                                href: "#",
+                                icon: <BookOpen className="text-white/70 h-5 w-5 flex-shrink-0" />,
+                            }}
+                        />
+                    </div>
+
+                    <div className="mt-8 flex flex-col gap-4">
+                        <div className="flex flex-col gap-2">
+                            <h3 className={cn(
+                                "text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] px-2 transition-opacity duration-300",
+                                !open && "opacity-0"
+                            )}>
+                                Pinned
+                            </h3>
+                            {data.pinned.map((item, idx) => (
+                                <SidebarLink
+                                    key={idx}
+                                    link={{
+                                        label: item.title,
+                                        href: item.url,
+                                        icon: <div className="text-white/60">{item.icon}</div>,
+                                    }}
                                 />
-                            </a>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton className="w-full justify-start gap-2 bg-gradient-to-r from-violet-600/20 to-indigo-600/20 border border-white/5 text-white/90 shadow-sm hover:from-violet-600/30 hover:to-indigo-600/30 hover:text-white transition-all" size="lg">
-                            <MessageSquarePlus className="size-4" />
-                            <span>New Chat</span>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-            </SidebarHeader>
-            <SidebarContent>
-                <SidebarGroup>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton tooltip="Discover" className="text-white/70 hover:text-white hover:bg-white/10">
-                                    <Compass />
-                                    <span>Discover</span>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton tooltip="Library" className="text-white/70 hover:text-white hover:bg-white/10">
-                                    <BookOpen />
-                                    <span>Library</span>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-
-                <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-                    <SidebarGroupLabel className="text-white/40">Pinned</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {data.pinned.map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild className="text-white/70 hover:text-white hover:bg-white/10">
-                                        <a href={item.url}>
-                                            <item.icon />
-                                            <span>{item.title}</span>
-                                        </a>
-                                    </SidebarMenuButton>
-                                    <SidebarMenuAction showOnHover className="text-white/40 hover:text-white">
-                                        <MoreHorizontal />
-                                        <span className="sr-only">More</span>
-                                    </SidebarMenuAction>
-                                </SidebarMenuItem>
                             ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
+                        </div>
 
-                <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-                    <SidebarGroupLabel className="text-white/40">Recent</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {data.recent.map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild className="hover:bg-white/5">
-                                        <a href={item.url} className="flex flex-col items-start !items-start gap-1 p-2 h-auto text-sidebar-foreground/80 hover:text-sidebar-foreground">
-                                            <span className="font-medium text-xs text-white/80">{item.title}</span>
-                                            <span className="text-[10px] text-white/40">{item.date}</span>
-                                        </a>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
+                        <div className="flex flex-col gap-2">
+                            <h3 className={cn(
+                                "text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] px-2 transition-opacity duration-300",
+                                !open && "opacity-0"
+                            )}>
+                                Recent
+                            </h3>
+                            {data.recent.map((item, idx) => (
+                                <SidebarLink
+                                    key={idx}
+                                    link={{
+                                        label: item.title,
+                                        href: item.url,
+                                        icon: <div className="size-5 flex items-center justify-center text-[10px] font-bold bg-white/5 rounded text-white/40">{item.title[0]}</div>,
+                                    }}
+                                />
                             ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-            </SidebarContent>
-            <SidebarFooter>
-                <SidebarMenu>
-                    <SidebarMenuItem>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-4 pb-4">
+                    <div className={cn("transition-all duration-300", !open && "opacity-0 pointer-events-none")}>
                         <WalletConnectButton />
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton className="text-white/70 hover:text-white hover:bg-white/10">
-                            <Settings2 />
-                            <span>Settings</span>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-            </SidebarFooter>
+                    </div>
+                    <SidebarLink
+                        link={{
+                            label: "Settings",
+                            href: "#",
+                            icon: <Settings2 className="text-white/60 h-5 w-5 flex-shrink-0" />,
+                        }}
+                    />
+                </div>
+            </SidebarBody>
         </Sidebar>
     )
 }
+
+const Logo = () => {
+    return (
+        <Link
+            href="/"
+            className="font-normal flex space-x-2 items-center text-sm py-1 relative z-20"
+        >
+            <Image
+                src="/0rca-Photoroom.svg"
+                alt="0rca Logo"
+                width={32}
+                height={32}
+                className="size-8"
+            />
+            <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="font-bold text-xl tracking-tighter text-white whitespace-pre"
+            >
+                0RCA
+            </motion.span>
+        </Link>
+    );
+};
+
+export const LogoIcon = () => {
+    return (
+        <Link
+            href="/"
+            className="font-normal flex space-x-2 items-center text-sm py-1 relative z-20"
+        >
+            <Image
+                src="/0rca-Photoroom.svg"
+                alt="0rca Logo"
+                width={32}
+                height={32}
+                className="size-8"
+            />
+        </Link>
+    );
+};

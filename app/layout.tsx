@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import PrivyProvider from "@/components/providers/privy-provider"
 
@@ -31,17 +30,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased dark`}
       >
         <PrivyProvider>
-          <SidebarProvider>
+          <div className="flex flex-col md:flex-row h-screen w-full bg-black overflow-hidden relative">
             <AppSidebar />
-            <SidebarInset>
-              <main className="relative flex-1 flex flex-col min-w-0">
-                <div className="absolute top-4 left-4 z-50">
-                  <SidebarTrigger />
-                </div>
-                {children}
-              </main>
-            </SidebarInset>
-          </SidebarProvider>
+            <main className="flex-1 flex flex-col min-h-0 relative z-10 w-full">
+              {children}
+            </main>
+          </div>
         </PrivyProvider>
       </body>
     </html>

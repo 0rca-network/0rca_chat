@@ -12,6 +12,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { SidebarLink } from "@/components/ui/sidebar";
+
 export function WalletConnectButton() {
     const { connect, disconnect, activeWallet, walletAddress } = usePrivyWallet();
 
@@ -20,10 +22,10 @@ export function WalletConnectButton() {
             <Button
                 onClick={connect}
                 variant="outline"
-                className="w-full justify-start gap-2 bg-transparent border-white/10 text-white/70 hover:text-white hover:bg-white/10"
+                className="w-full justify-start gap-2 bg-transparent border border-white/10 text-white/70 hover:text-white hover:bg-white/10"
             >
                 <Wallet className="size-4" />
-                <span>Connect Wallet</span>
+                <span className="hidden md:inline-block">Connect Wallet</span>
             </Button>
         );
     }
@@ -33,10 +35,10 @@ export function WalletConnectButton() {
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="outline"
-                    className="w-full justify-start gap-2 bg-violet-500/10 border-violet-500/20 text-white hover:bg-violet-500/20"
+                    className="w-full justify-start gap-2 bg-violet-500/10 border border-violet-500/20 text-white hover:bg-violet-500/20"
                 >
                     <Wallet className="size-4 text-violet-400" />
-                    <span className="truncate max-w-[120px]">{walletAddress}</span>
+                    <span className="truncate max-w-[120px] hidden md:inline-block">{walletAddress}</span>
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 bg-black/95 border-white/10 text-white">
