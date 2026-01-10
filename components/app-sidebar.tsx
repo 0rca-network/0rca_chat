@@ -157,9 +157,9 @@ const Logo = () => {
             <Image
                 src="/0rca-Photoroom.svg"
                 alt="0rca Logo"
-                width={32}
-                height={32}
-                className="size-8"
+                width={48}
+                height={48}
+                className="size-12"
             />
             <motion.span
                 initial={{ opacity: 0 }}
@@ -181,9 +181,9 @@ export const LogoIcon = () => {
             <Image
                 src="/0rca-Photoroom.svg"
                 alt="0rca Logo"
-                width={32}
-                height={32}
-                className="size-8"
+                width={48}
+                height={48}
+                className="size-12"
             />
         </Link>
     );

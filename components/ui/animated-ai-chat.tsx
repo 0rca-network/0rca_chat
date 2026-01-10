@@ -15,12 +15,18 @@ import {
     Code2,
     Rocket,
     Layers,
-    Palette
+    Palette,
+    Search,
+    X,
+    CheckCircle2,
+    Circle,
+    XCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as React from "react"
 import { PromptInputBox } from "@/components/ui/ai-prompt-box";
 import { FluidDropdown, DropdownOption } from "@/components/ui/fluid-dropdown";
+import { Input } from "@/components/ui/input";
 import {
     Select,
     SelectContent,
@@ -67,6 +73,7 @@ export function AnimatedAIChat() {
     const [isPending, startTransition] = useTransition();
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const [inputFocused, setInputFocused] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
 
     // Agent Selection State
     const [orchestratorMode, setOrchestratorMode] = useState("auto");
@@ -232,72 +239,128 @@ export function AnimatedAIChat() {
                                             </Button>
                                         </DialogTrigger>
 
-                                        <DialogContent className="sm:max-w-3xl bg-black/90 border-white/10 text-white aspect-[4/3] flex flex-col p-6 overflow-hidden">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <DialogTitle className="text-xl font-medium">Select Agents</DialogTitle>
-                                                <div className="flex items-center gap-2">
-                                                    <DialogClose asChild>
-                                                        <Button variant="ghost" className="text-white/60 hover:text-white">Cancel</Button>
-                                                    </DialogClose>
-                                                    <DialogClose asChild>
-                                                        <Button className="bg-white text-black hover:bg-white/90">Save</Button>
-                                                    </DialogClose>
+                                        <DialogContent className="sm:max-w-xl bg-[#0A0A0B]/95 border-white/10 text-white flex flex-col p-0 overflow-hidden shadow-2xl backdrop-blur-xl rounded-3xl">
+                                            <div className="p-6 pb-2">
+                                                <div className="flex items-center justify-between mb-6">
+                                                    <DialogTitle className="text-xl font-semibold tracking-tight">Select Agents</DialogTitle>
+                                                    <div className="flex items-center gap-3">
+                                                        <DialogClose asChild>
+                                                            <Button variant="ghost" className="text-white/40 hover:text-white hover:bg-white/5 rounded-xl px-4 py-2 text-sm font-medium transition-colors">Cancel</Button>
+                                                        </DialogClose>
+                                                        <DialogClose asChild>
+                                                            <Button className="bg-white text-black hover:bg-white/90 rounded-xl px-6 py-2 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]">Save</Button>
+                                                        </DialogClose>
+                                                    </div>
+                                                </div>
+
+                                                {/* Selected Agents View (Reference style) */}
+                                                <div className="mb-6">
+                                                    <div className="flex items-center justify-between mb-3 px-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm font-semibold text-white/90">Added ({selectedAgents.length})</span>
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                                                        </div>
+                                                        <span className="text-xs text-white/30 font-medium tracking-wide">1 / 1</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-4 overflow-x-auto py-2 scrollbar-none min-h-[80px]">
+                                                        <AnimatePresence mode="popLayout">
+                                                            {selectedAgents.length === 0 ? (
+                                                                <motion.div
+                                                                    initial={{ opacity: 0 }}
+                                                                    animate={{ opacity: 1 }}
+                                                                    className="w-full h-16 flex items-center justify-center rounded-2xl border border-dashed border-white/5 bg-white/[0.01]"
+                                                                >
+                                                                    <span className="text-xs text-white/20">No agents selected yet</span>
+                                                                </motion.div>
+                                                            ) : (
+                                                                agents.filter(a => selectedAgents.includes(a.id)).map(agent => (
+                                                                    <motion.div
+                                                                        key={agent.id}
+                                                                        layout
+                                                                        initial={{ opacity: 0, scale: 0.8, x: -20 }}
+                                                                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                                                                        exit={{ opacity: 0, scale: 0.8, x: 20 }}
+                                                                        className="relative group flex-shrink-0"
+                                                                    >
+                                                                        <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-violet-500/10 to-indigo-500/10 border-2 border-white/10 flex items-center justify-center transition-all group-hover:border-violet-500/50 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.2)]">
+                                                                            <agent.icon className="w-8 h-8 text-white/80 group-hover:text-white transition-colors" />
+                                                                        </div>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                toggleAgent(agent.id);
+                                                                            }}
+                                                                            className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-[#1A1A1B] border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-[#2A2A2B] transition-all hover:scale-110 shadow-lg"
+                                                                        >
+                                                                            <X size={12} strokeWidth={3} />
+                                                                        </button>
+                                                                    </motion.div>
+                                                                ))
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </div>
+                                                </div>
+
+                                                {/* Search Section */}
+                                                <div className="flex items-center justify-between mb-4 px-1">
+                                                    <span className="text-sm font-semibold text-white/60">Agents ({agents.length})</span>
+                                                    <div className="relative w-full max-w-[240px]">
+                                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                                                        <Input
+                                                            placeholder="Search Agents"
+                                                            className="bg-white/[0.03] border-white/5 rounded-xl pl-9 pr-4 h-9 text-sm focus-visible:ring-violet-500/50 transition-all placeholder:text-white/20"
+                                                            value={searchQuery}
+                                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            {/* Selected Agents View */}
-                                            <div className="h-32 mb-6 border border-white/10 rounded-xl bg-white/[0.02] p-4 flex items-center gap-4 overflow-x-auto">
-                                                {selectedAgents.length === 0 ? (
-                                                    <div className="w-full text-center text-white/30 text-sm">
-                                                        No agents selected
-                                                    </div>
-                                                ) : (
-                                                    agents.filter(a => selectedAgents.includes(a.id)).map(agent => (
-                                                        <div key={agent.id} className="flex-shrink-0 flex flex-col items-center gap-2">
-                                                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 border border-white/10 flex items-center justify-center">
-                                                                <agent.icon className="w-8 h-8 text-white/80" />
-                                                            </div>
-                                                            <span className="text-xs text-white/60">{agent.name}</span>
-                                                        </div>
-                                                    ))
-                                                )}
-                                            </div>
-
-                                            {/* Agent Grid */}
-                                            <div className="flex-1 overflow-y-auto pr-2">
-                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                                    {agents.map((agent) => {
+                                            {/* Agent List (Reference style) */}
+                                            <div className="flex-1 overflow-y-auto px-4 pb-6 scrollbar-thin scrollbar-thumb-white/10">
+                                                <div className="space-y-1">
+                                                    {agents.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase())).map((agent) => {
                                                         const isSelected = selectedAgents.includes(agent.id);
                                                         return (
-                                                            <div
+                                                            <motion.div
                                                                 key={agent.id}
+                                                                layout
                                                                 onClick={() => toggleAgent(agent.id)}
                                                                 className={cn(
-                                                                    "group p-3 rounded-xl border transition-all cursor-pointer relative overflow-hidden",
+                                                                    "flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all duration-200 group",
                                                                     isSelected
-                                                                        ? "bg-violet-500/10 border-violet-500/50"
-                                                                        : "bg-white/[0.02] border-white/10 hover:border-white/20 hover:bg-white/[0.04]"
+                                                                        ? "bg-white/[0.04]"
+                                                                        : "hover:bg-white/[0.02]"
                                                                 )}
                                                             >
-                                                                <div className="flex justify-between items-start mb-2">
+                                                                <div className="flex items-center gap-4">
                                                                     <div className={cn(
-                                                                        "p-2 rounded-lg transition-colors",
-                                                                        isSelected ? "bg-violet-500/20 text-violet-200" : "bg-white/5 text-white/60"
-                                                                    )}>
-                                                                        <agent.icon className="w-5 h-5" />
-                                                                    </div>
-                                                                    <div className={cn(
-                                                                        "w-4 h-4 rounded-full border flex items-center justify-center transition-colors",
+                                                                        "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300",
                                                                         isSelected
-                                                                            ? "bg-violet-500 border-violet-500"
-                                                                            : "border-white/20 group-hover:border-white/40"
+                                                                            ? "bg-violet-500/20 text-violet-400 border border-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.15)]"
+                                                                            : "bg-white/[0.03] text-white/40 group-hover:bg-white/[0.05] group-hover:text-white/60"
                                                                     )}>
-                                                                        {isSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                                                                        <agent.icon className="w-6 h-6" />
+                                                                    </div>
+                                                                    <div className="flex flex-col">
+                                                                        <span className={cn(
+                                                                            "text-sm font-semibold transition-colors decoration-violet-500/50 underline-offset-4",
+                                                                            isSelected ? "text-white underline" : "text-white/70 group-hover:text-white"
+                                                                        )}>
+                                                                            {agent.name}
+                                                                        </span>
+                                                                        <span className="text-[11px] text-white/30 font-medium group-hover:text-white/40 transition-colors">{agent.description}</span>
                                                                     </div>
                                                                 </div>
-                                                                <div className="font-medium text-sm text-white/90 mb-0.5">{agent.name}</div>
-                                                                <div className="text-[10px] text-white/50 leading-tight">{agent.description}</div>
-                                                            </div>
+                                                                <div className={cn(
+                                                                    "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                                                                    isSelected
+                                                                        ? "bg-violet-500 border-violet-500 scale-110 shadow-[0_0_10px_rgba(139,92,246,0.4)]"
+                                                                        : "border-white/10 group-hover:border-white/20"
+                                                                )}>
+                                                                    {isSelected && <CheckCircle2 size={14} className="text-white" />}
+                                                                </div>
+                                                            </motion.div>
                                                         );
                                                     })}
                                                 </div>
