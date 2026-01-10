@@ -173,27 +173,94 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     isRecording,
     onStartRecording,
     onStopRecording,
-    visualizerBars = 32,
+    visualizerBars = 48,
 }) => {
     const [time, setTime] = React.useState(0);
+    const [volumes, setVolumes] = React.useState<number[]>(new Array(visualizerBars).fill(0));
     const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+    const audioContextRef = React.useRef<AudioContext | null>(null);
+    const analyserRef = React.useRef<AnalyserNode | null>(null);
+    const streamRef = React.useRef<MediaStream | null>(null);
+    const animationFrameRef = React.useRef<number | null>(null);
+
+    const startAudio = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream;
+
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            const audioContext = new AudioContextClass();
+            audioContextRef.current = audioContext;
+
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            analyserRef.current = analyser;
+
+            const source = audioContext.createMediaStreamSource(stream);
+            source.connect(analyser);
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            const updateVisualizer = () => {
+                if (!analyserRef.current) return;
+                analyserRef.current.getByteFrequencyData(dataArray);
+
+                // Map frequency data to visualizer bars
+                const newVolumes = [];
+                const step = Math.floor(bufferLength / visualizerBars);
+                for (let i = 0; i < visualizerBars; i++) {
+                    let sum = 0;
+                    for (let j = 0; j < step; j++) {
+                        sum += dataArray[i * step + j];
+                    }
+                    const avg = sum / step;
+                    // Boost the average and add some floor for visibility
+                    newVolumes.push(Math.max(10, (avg / 255) * 100));
+                }
+                setVolumes(newVolumes);
+                animationFrameRef.current = requestAnimationFrame(updateVisualizer);
+            };
+
+            updateVisualizer();
+        } catch (err) {
+            console.error("Error accessing microphone:", err);
+        }
+    };
+
+    const stopAudio = () => {
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
+        if (audioContextRef.current) audioContextRef.current.close();
+
+        streamRef.current = null;
+        audioContextRef.current = null;
+        analyserRef.current = null;
+        setVolumes(new Array(visualizerBars).fill(10));
+    };
 
     React.useEffect(() => {
         if (isRecording) {
             onStartRecording();
+            setTime(0);
             timerRef.current = setInterval(() => setTime((t) => t + 1), 1000);
+            startAudio();
         } else {
             if (timerRef.current) {
                 clearInterval(timerRef.current);
                 timerRef.current = null;
             }
-            onStopRecording(time);
+            if (time > 0) {
+                onStopRecording(time);
+            }
+            stopAudio();
             setTime(0);
         }
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
+            stopAudio();
         };
-    }, [isRecording, time, onStartRecording, onStopRecording]);
+    }, [isRecording]);
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -204,23 +271,28 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     return (
         <div
             className={cn(
-                "flex flex-col items-center justify-center w-full transition-all duration-300 py-3",
-                isRecording ? "opacity-100" : "opacity-0 h-0"
+                "flex flex-col items-center justify-center w-full transition-all duration-500 py-4",
+                isRecording ? "opacity-100 scale-100" : "opacity-0 scale-95 h-0 overflow-hidden"
             )}
         >
-            <div className="flex items-center gap-2 mb-3">
-                <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="font-mono text-sm text-white/80">{formatTime(time)}</span>
+            <div className="flex items-center gap-2 mb-4">
+                <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+                <span className="font-mono text-base font-medium text-white/90">{formatTime(time)}</span>
             </div>
-            <div className="w-full h-10 flex items-center justify-center gap-0.5 px-4">
-                {[...Array(visualizerBars)].map((_, i) => (
-                    <div
+            <div className="w-full h-16 flex items-center justify-center gap-[3px] px-6">
+                {volumes.map((vol, i) => (
+                    <motion.div
                         key={i}
-                        className="w-0.5 rounded-full bg-white/50 animate-pulse"
-                        style={{
-                            height: `${Math.max(15, Math.random() * 100)}%`,
-                            animationDelay: `${i * 0.05}s`,
-                            animationDuration: `${0.5 + Math.random() * 0.5}s`,
+                        className="w-[3px] rounded-full bg-gradient-to-t from-gray-500/40 via-white/60 to-gray-500/40"
+                        animate={{
+                            height: `${vol}%`,
+                            opacity: 0.3 + (vol / 100) * 0.7
+                        }}
+                        transition={{
+                            type: "spring",
+                            stiffness: 300,
+                            damping: 20,
+                            mass: 0.8
                         }}
                     />
                 ))}

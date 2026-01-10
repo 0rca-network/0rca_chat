@@ -9,16 +9,18 @@ import {
     Figma,
     MonitorIcon,
     Bot,
+    CircleUserRound,
+    Cpu,
     Zap,
     Code2,
     Rocket,
     Layers,
-    Palette,
-    CircleUserRound
+    Palette
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as React from "react"
 import { PromptInputBox } from "@/components/ui/ai-prompt-box";
+import { FluidDropdown, DropdownOption } from "@/components/ui/fluid-dropdown";
 import {
     Select,
     SelectContent,
@@ -54,6 +56,11 @@ interface Agent {
 }
 
 const AVAILABLE_AGENTS: Agent[] = [];
+
+const ORCHESTRATOR_OPTIONS: DropdownOption[] = [
+    { id: "auto", label: "Auto Orchestrator", icon: Bot, color: "#A06CD5" },
+    { id: "manual", label: "Manual Swarm", icon: Cpu, color: "#45B7D1" },
+];
 
 export function AnimatedAIChat() {
     const [isTyping, setIsTyping] = useState(false);
@@ -201,15 +208,12 @@ export function AnimatedAIChat() {
                             isLoading={isPending}
                             header={
                                 <div className="flex items-center justify-between py-1">
-                                    <Select value={orchestratorMode} onValueChange={setOrchestratorMode}>
-                                        <SelectTrigger className="w-auto min-w-[160px] bg-transparent border-none text-white/70 hover:text-white/90 focus:ring-0 focus:ring-offset-0 hover:bg-white/5 transition-colors h-8 gap-2">
-                                            <SelectValue placeholder="Select mode" />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-black/95 border-white/10 text-white">
-                                            <SelectItem value="auto">Auto Orchestrator</SelectItem>
-                                            <SelectItem value="manual">Manual Swarm</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <FluidDropdown
+                                        value={orchestratorMode}
+                                        onChange={setOrchestratorMode}
+                                        options={ORCHESTRATOR_OPTIONS}
+                                        className="w-[200px]"
+                                    />
 
                                     <Dialog open={isAgentDialogOpen} onOpenChange={setIsAgentDialogOpen}>
                                         <DialogTrigger asChild>
