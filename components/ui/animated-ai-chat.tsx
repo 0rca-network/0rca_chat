@@ -195,131 +195,125 @@ export function AnimatedAIChat() {
                     )}
 
 
-                    <motion.div
-                        className="relative backdrop-blur-2xl bg-white/[0.02] rounded-2xl border border-white/[0.05] shadow-2xl"
-                        initial={{ scale: 0.98 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 0.1 }}
-                    >
-                        {/* Orchestrator Controls */}
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.05]">
-                            <Select value={orchestratorMode} onValueChange={setOrchestratorMode}>
-                                <SelectTrigger className="w-[180px] bg-transparent border-white/10 text-white/90 focus:ring-0 focus:ring-offset-0">
-                                    <SelectValue placeholder="Select mode" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-black/90 border-white/10 text-white">
-                                    <SelectItem value="auto">Auto Orchestrator</SelectItem>
-                                    <SelectItem value="manual">Manual Swarm</SelectItem>
-                                </SelectContent>
-                            </Select>
+                    <div className="w-full max-w-2xl mx-auto relative">
+                        <PromptInputBox
+                            onSend={handleSendMessage}
+                            isLoading={isPending}
+                            header={
+                                <div className="flex items-center justify-between py-1">
+                                    <Select value={orchestratorMode} onValueChange={setOrchestratorMode}>
+                                        <SelectTrigger className="w-auto min-w-[160px] bg-transparent border-none text-white/70 hover:text-white/90 focus:ring-0 focus:ring-offset-0 hover:bg-white/5 transition-colors h-8 gap-2">
+                                            <SelectValue placeholder="Select mode" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-black/95 border-white/10 text-white">
+                                            <SelectItem value="auto">Auto Orchestrator</SelectItem>
+                                            <SelectItem value="manual">Manual Swarm</SelectItem>
+                                        </SelectContent>
+                                    </Select>
 
-                            <Dialog open={isAgentDialogOpen} onOpenChange={setIsAgentDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        className="bg-white/[0.05] hover:bg-white/[0.1] border-white/10 text-white/90 gap-2"
-                                    >
-                                        <Bot className="w-4 h-4" />
-                                        <span>Agents</span>
-                                        {selectedAgents.length > 0 && (
-                                            <span className="flex items-center justify-center w-5 h-5 ml-1 text-xs bg-violet-500/20 text-violet-300 rounded-full">
-                                                {selectedAgents.length}
-                                            </span>
-                                        )}
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-3xl bg-black/90 border-white/10 text-white aspect-[4/3] flex flex-col p-6 overflow-hidden">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <DialogTitle className="text-xl font-medium">Select Agents</DialogTitle>
-                                        <div className="flex items-center gap-2">
-                                            <DialogClose asChild>
-                                                <Button variant="ghost" className="text-white/60 hover:text-white">Cancel</Button>
-                                            </DialogClose>
-                                            <DialogClose asChild>
-                                                <Button className="bg-white text-black hover:bg-white/90">Save</Button>
-                                            </DialogClose>
-                                        </div>
-                                    </div>
+                                    <Dialog open={isAgentDialogOpen} onOpenChange={setIsAgentDialogOpen}>
+                                        <DialogTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="bg-transparent hover:bg-white/5 text-white/70 hover:text-white/90 gap-2 h-8"
+                                            >
+                                                <Bot className="w-4 h-4" />
+                                                <span>Agents</span>
+                                                {selectedAgents.length > 0 && (
+                                                    <span className="flex items-center justify-center w-5 h-5 ml-1 text-xs bg-violet-500/20 text-violet-300 rounded-full">
+                                                        {selectedAgents.length}
+                                                    </span>
+                                                )}
+                                            </Button>
+                                        </DialogTrigger>
 
-                                    {/* Selected Agents View */}
-                                    <div className="h-32 mb-6 border border-white/10 rounded-xl bg-white/[0.02] p-4 flex items-center gap-4 overflow-x-auto">
-                                        {selectedAgents.length === 0 ? (
-                                            <div className="w-full text-center text-white/30 text-sm">
-                                                No agents selected
-                                            </div>
-                                        ) : (
-                                            agents.filter(a => selectedAgents.includes(a.id)).map(agent => (
-                                                <div key={agent.id} className="flex-shrink-0 flex flex-col items-center gap-2">
-                                                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 border border-white/10 flex items-center justify-center">
-                                                        <agent.icon className="w-8 h-8 text-white/80" />
-                                                    </div>
-                                                    <span className="text-xs text-white/60">{agent.name}</span>
+                                        <DialogContent className="sm:max-w-3xl bg-black/90 border-white/10 text-white aspect-[4/3] flex flex-col p-6 overflow-hidden">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <DialogTitle className="text-xl font-medium">Select Agents</DialogTitle>
+                                                <div className="flex items-center gap-2">
+                                                    <DialogClose asChild>
+                                                        <Button variant="ghost" className="text-white/60 hover:text-white">Cancel</Button>
+                                                    </DialogClose>
+                                                    <DialogClose asChild>
+                                                        <Button className="bg-white text-black hover:bg-white/90">Save</Button>
+                                                    </DialogClose>
                                                 </div>
-                                            ))
-                                        )}
-                                    </div>
+                                            </div>
 
-                                    {/* Agent Grid */}
-                                    <div className="flex-1 overflow-y-auto pr-2">
-                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                            {agents.map((agent) => {
-                                                const isSelected = selectedAgents.includes(agent.id);
-                                                return (
-                                                    <div
-                                                        key={agent.id}
-                                                        onClick={() => toggleAgent(agent.id)}
-                                                        className={cn(
-                                                            "group p-3 rounded-xl border transition-all cursor-pointer relative overflow-hidden",
-                                                            isSelected
-                                                                ? "bg-violet-500/10 border-violet-500/50"
-                                                                : "bg-white/[0.02] border-white/10 hover:border-white/20 hover:bg-white/[0.04]"
-                                                        )}
-                                                    >
-                                                        <div className="flex justify-between items-start mb-2">
-                                                            <div className={cn(
-                                                                "p-2 rounded-lg transition-colors",
-                                                                isSelected ? "bg-violet-500/20 text-violet-200" : "bg-white/5 text-white/60"
-                                                            )}>
-                                                                <agent.icon className="w-5 h-5" />
-                                                            </div>
-                                                            <div className={cn(
-                                                                "w-4 h-4 rounded-full border flex items-center justify-center transition-colors",
-                                                                isSelected
-                                                                    ? "bg-violet-500 border-violet-500"
-                                                                    : "border-white/20 group-hover:border-white/40"
-                                                            )}>
-                                                                {isSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-                                                            </div>
-                                                        </div>
-                                                        <div className="font-medium text-sm text-white/90 mb-0.5">{agent.name}</div>
-                                                        <div className="text-[10px] text-white/50 leading-tight">{agent.description}</div>
+                                            {/* Selected Agents View */}
+                                            <div className="h-32 mb-6 border border-white/10 rounded-xl bg-white/[0.02] p-4 flex items-center gap-4 overflow-x-auto">
+                                                {selectedAgents.length === 0 ? (
+                                                    <div className="w-full text-center text-white/30 text-sm">
+                                                        No agents selected
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </DialogContent>
-                            </Dialog>
+                                                ) : (
+                                                    agents.filter(a => selectedAgents.includes(a.id)).map(agent => (
+                                                        <div key={agent.id} className="flex-shrink-0 flex flex-col items-center gap-2">
+                                                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 border border-white/10 flex items-center justify-center">
+                                                                <agent.icon className="w-8 h-8 text-white/80" />
+                                                            </div>
+                                                            <span className="text-xs text-white/60">{agent.name}</span>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+
+                                            {/* Agent Grid */}
+                                            <div className="flex-1 overflow-y-auto pr-2">
+                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                                    {agents.map((agent) => {
+                                                        const isSelected = selectedAgents.includes(agent.id);
+                                                        return (
+                                                            <div
+                                                                key={agent.id}
+                                                                onClick={() => toggleAgent(agent.id)}
+                                                                className={cn(
+                                                                    "group p-3 rounded-xl border transition-all cursor-pointer relative overflow-hidden",
+                                                                    isSelected
+                                                                        ? "bg-violet-500/10 border-violet-500/50"
+                                                                        : "bg-white/[0.02] border-white/10 hover:border-white/20 hover:bg-white/[0.04]"
+                                                                )}
+                                                            >
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <div className={cn(
+                                                                        "p-2 rounded-lg transition-colors",
+                                                                        isSelected ? "bg-violet-500/20 text-violet-200" : "bg-white/5 text-white/60"
+                                                                    )}>
+                                                                        <agent.icon className="w-5 h-5" />
+                                                                    </div>
+                                                                    <div className={cn(
+                                                                        "w-4 h-4 rounded-full border flex items-center justify-center transition-colors",
+                                                                        isSelected
+                                                                            ? "bg-violet-500 border-violet-500"
+                                                                            : "border-white/20 group-hover:border-white/40"
+                                                                    )}>
+                                                                        {isSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="font-medium text-sm text-white/90 mb-0.5">{agent.name}</div>
+                                                                <div className="text-[10px] text-white/50 leading-tight">{agent.description}</div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </DialogContent>
+                                    </Dialog>
+                                </div>
+                            }
+                        />
+
+                        {/* Quick Actions moved outside and below */}
+                        <div className="flex items-center justify-center flex-wrap gap-2 mt-6 pb-2">
+                            <QuickAction icon={<Code2 className="w-3.5 h-3.5" />} label="Generate Code" />
+                            <QuickAction icon={<Rocket className="w-3.5 h-3.5" />} label="Launch App" />
+                            <QuickAction icon={<Layers className="w-3.5 h-3.5" />} label="UI components" />
+                            <QuickAction icon={<Palette className="w-3.5 h-3.5" />} label="Theme ideas" />
+                            <QuickAction icon={<CircleUserRound className="w-3.5 h-3.5" />} label="User Dashboard" />
+                            <QuickAction icon={<MonitorIcon className="w-3.5 h-3.5" />} label="Landing Page" />
                         </div>
-
-                        <div className="p-4">
-                            <PromptInputBox
-                                onSend={handleSendMessage}
-                                isLoading={isPending}
-                            />
-
-                            {/* Quick Actions */}
-                            <div className="flex items-center justify-center flex-wrap gap-2 mt-4 pb-2">
-                                <QuickAction icon={<Code2 className="w-3.5 h-3.5" />} label="Generate Code" />
-                                <QuickAction icon={<Rocket className="w-3.5 h-3.5" />} label="Launch App" />
-                                <QuickAction icon={<Layers className="w-3.5 h-3.5" />} label="UI components" />
-                                <QuickAction icon={<Palette className="w-3.5 h-3.5" />} label="Theme ideas" />
-                                <QuickAction icon={<CircleUserRound className="w-3.5 h-3.5" />} label="User Dashboard" />
-                                <QuickAction icon={<MonitorIcon className="w-3.5 h-3.5" />} label="Landing Page" />
-                            </div>
-                        </div>
-                    </motion.div>
-
+                    </div>
                 </motion.div>
             </div>
 

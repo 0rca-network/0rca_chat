@@ -444,9 +444,10 @@ interface PromptInputBoxProps {
     isLoading?: boolean;
     placeholder?: string;
     className?: string;
+    header?: React.ReactNode;
 }
 export const PromptInputBox = React.forwardRef((props: PromptInputBoxProps, ref: React.Ref<HTMLDivElement>) => {
-    const { onSend = () => { }, isLoading = false, placeholder = "Type your message here...", className } = props;
+    const { onSend = () => { }, isLoading = false, placeholder = "Type your message here...", className, header } = props;
     const [input, setInput] = React.useState("");
     const [files, setFiles] = React.useState<File[]>([]);
     const [filePreviews, setFilePreviews] = React.useState<{ [key: string]: string }>({});
@@ -575,6 +576,11 @@ export const PromptInputBox = React.forwardRef((props: PromptInputBoxProps, ref:
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
             >
+                {header && (
+                    <div className="px-1 pb-2 mb-2 border-b border-white/[0.05]">
+                        {header}
+                    </div>
+                )}
                 {files.length > 0 && !isRecording && (
                     <div className="flex flex-wrap gap-2 p-0 pb-1 transition-all duration-300">
                         {files.map((file, index) => (
