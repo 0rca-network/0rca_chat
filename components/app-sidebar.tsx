@@ -40,17 +40,17 @@ const data = {
     recent: [
         {
             title: "React Components",
-            url: "#",
+            url: "/c/react-components",
             date: "Just now",
         },
         {
             title: "Bug Fixes Q1",
-            url: "#",
+            url: "/c/bug-fixes",
             date: "2h ago",
         },
         {
             title: "Team Meeting",
-            url: "#",
+            url: "/c/team-meeting",
             date: "5h ago",
         },
     ],
