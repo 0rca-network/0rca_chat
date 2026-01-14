@@ -172,7 +172,8 @@ export const SidebarLink = ({
         <Link
             href={link.href}
             className={cn(
-                "flex items-center justify-start gap-2 group/sidebar py-2",
+                "flex items-center gap-2 group/sidebar py-2",
+                open ? "justify-start" : "justify-center",
                 className
             )}
             {...props}
@@ -190,3 +191,4 @@ export const SidebarLink = ({
         </Link>
     );
 };
+
