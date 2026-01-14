@@ -132,3 +132,11 @@
   max-height: 100vh;
   box-sizing: border-box;
 }
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
