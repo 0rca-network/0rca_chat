@@ -1,11 +1,13 @@
-import { Mistral } from "@mistralai/mistralai";
+import { createMistral } from "@ai-sdk/mistral";
 
-export function createMistralClient(): Mistral {
+export function createMistralClient() {
     const apiKey = process.env.MISTRAL_API_KEY;
 
     if (!apiKey) {
         throw new Error("Missing Mistral API Key in environment variables.");
     }
 
-    return new Mistral({ apiKey });
+    return createMistral({
+        apiKey,
+    });
 }

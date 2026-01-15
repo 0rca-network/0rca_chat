@@ -1,5 +1,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Mistral } from "@mistralai/mistralai";
+import { generateText, tool } from "ai";
+import { z } from "zod";
+import { createMistralClient } from "./clients/mistral";
 
 interface OrchestrationInput {
     prompt: string;
@@ -13,20 +15,17 @@ interface Agent {
     description: string | null;
     system_prompt: string;
     data_input?: string;
-    // Match Supabase schema
 }
 
 export class Orchestrator {
     constructor(
         private supabase: SupabaseClient,
-        private mistral: Mistral
+        private mistral: any // Using any for the provider to avoid type mismatches
     ) { }
 
     async execute(input: OrchestrationInput): Promise<string> {
         const { prompt, mode, selectedAgentIds } = input;
 
-        // 1. Fetch available agents
-        // Assuming a table named 'agents'. You might need to adjust this based on actual schema.
         const { data: allAgents, error } = await this.supabase
             .from("agents")
             .select("*");
@@ -37,14 +36,12 @@ export class Orchestrator {
 
         let activeAgents: Agent[] = [];
 
-        // 2. Determine Active Agents
         if (mode === "manual") {
             if (!selectedAgentIds || selectedAgentIds.length === 0) {
                 return "Please select at least one agent for Manual Swarm mode.";
             }
             activeAgents = allAgents.filter((a) => selectedAgentIds.includes(a.id));
         } else {
-            // Auto Orchestration: Select agents based on prompt using Mistral
             activeAgents = await this.selectAgentsAutomatically(prompt, allAgents);
         }
 
@@ -52,12 +49,7 @@ export class Orchestrator {
             return "No suitable agents found for this task.";
         }
 
-        // 3. Execute Task with Active Agents
-        // This is a simplified sequential or router implementation.
-        // For a real "hiring" flow, we'd need a multi-turn loop.
-        // Here we will use a "Supervisor" approach: one LLM call to plan and delegate.
-
-        return await this.runSwarm(prompt, activeAgents);
+        return await this.runSwarmWithVercelSDK(prompt, activeAgents);
     }
 
     private async selectAgentsAutomatically(prompt: string, agents: Agent[]): Promise<Agent[]> {
@@ -75,167 +67,95 @@ Available Agents:
 ${agentDescriptions}
 `;
 
-        const chatResponse = await this.mistral.chat.complete({
-            model: "mistral-small-latest",
-            messages: [{ role: "user", content: selectionPrompt }],
-            responseFormat: { type: "json_object" },
+        const { text } = await generateText({
+            model: this.mistral("mistral-small-latest"),
+            prompt: selectionPrompt,
         });
 
-        // Handle the case where content might be null or array
-        const content = chatResponse.choices?.[0]?.message?.content;
-        const contentStr = Array.isArray(content) ? content.join("") : (content || "");
-
         try {
-            const result = JSON.parse(contentStr);
-            // Expecting { "agentIds": [...] } or just [...]
+            const cleanedText = text.replace(/```json\n?|\n?```/g, "").trim();
+            const result = JSON.parse(cleanedText);
             const ids: string[] = Array.isArray(result) ? result : result.agentIds || [];
             return agents.filter((a) => ids.includes(a.id));
         } catch (e) {
             console.error("Failed to parse agent selection", e);
-            // Fallback: use all agents or fail gracefully. specific to requirements.
-            // For now, return top 3 or all if few.
             return agents.slice(0, 3);
         }
     }
 
-    private async runSwarm(prompt: string, agents: Agent[]): Promise<string> {
-        // A simple supervisor loop:
-        // The supervisor (Mistral) sees the agents as tools.
-        // We construct a system prompt that gives it context on the agents.
+    private async runSwarmWithVercelSDK(prompt: string, agents: Agent[]): Promise<string> {
+        // Define mock tools
+        const mockTools: any = {
+            getWeather: tool({
+                description: "Get the current weather for a specific location",
+                parameters: z.object({
+                    location: z.string().describe("The city and country, e.g., San Francisco, USA"),
+                }),
+                execute: async ({ location }: { location: string }) => {
+                    console.log(`[Mock Tool] Fetching weather for ${location}...`);
+                    return `The weather in ${location} is currently 72°F and sunny. (Mock Data)`;
+                },
+            }),
+            searchWeb: tool({
+                description: "Search the web for information",
+                parameters: z.object({
+                    query: z.string().describe("The search query"),
+                }),
+                execute: async ({ query }: { query: string }) => {
+                    console.log(`[Mock Tool] Searching web for "${query}"...`);
+                    return `Top result for "${query}": Mistral AI is integrated with Vercel AI SDK. (Mock Data)`;
+                },
+            }),
+            getStockPrice: tool({
+                description: "Get the current stock price for a symbol",
+                parameters: z.object({
+                    symbol: z.string().describe("The stock ticker symbol, e.g., AAPL"),
+                }),
+                execute: async ({ symbol }: { symbol: string }) => {
+                    console.log(`[Mock Tool] Fetching stock price for ${symbol}...`);
+                    return `The current price of ${symbol} is $150.00. (Mock Data)`;
+                },
+            }),
+        };
 
-        const agentTools = agents.map(agent => ({
-            type: "function" as const,
-            function: {
-                name: `call_${agent.name.replace(/[^a-zA-Z0-9_]/g, "_").toLowerCase()}`, // Sanitize name
+        // Dynamically add "agent tools" that call the agents' personas
+        const agentTools: Record<string, any> = {};
+        for (const agent of agents) {
+            const toolName = `call_${agent.name.replace(/[^a-zA-Z0-9_]/g, "_").toLowerCase()}`;
+            agentTools[toolName] = tool({
                 description: agent.description || `Call the ${agent.name} agent`,
-                parameters: {
-                    type: "object",
-                    properties: {
-                        task: { type: "string", description: `Task input. Expected format: ${agent.data_input || "text description"}` }
-                    },
-                    required: ["task"]
-                }
-            }
-        }));
-
-        // Start the conversation
-        const messages = [
-            {
-                role: "system", content: `You are a strict Swarm Manager. Your ONLY job is to delegate user tasks to the available agents. 
-DO NOT answer the user's question directly.
-DO NOT summarize the answer yourself unless it's a combination of agent outputs.
-ALWAYS use the tools provided to call the agents.
-User Task: "${prompt}"`
-            },
-            { role: "user", content: prompt }
-        ];
-
-        // Initial call to Manager
-        const response = await this.mistral.chat.complete({
-            model: "mistral-large-latest",
-            messages: messages as any, // casting for simplicity in this snippet
-            tools: agentTools,
-            toolChoice: "auto"
-        });
-
-        const choice = response.choices?.[0];
-        const message = choice?.message;
-
-        // Check if tool calls (delegation) needed
-        if (message?.toolCalls && message.toolCalls.length > 0) {
-            // Execute "agent calls" (simulated by calling Mistral again with that agent's persona)
-            const toolOutputs = [];
-
-            for (const toolCall of message.toolCalls) {
-                const agentNameFromTool = toolCall.function.name.replace("call_", "");
-                const agent = agents.find(a => a.name.replace(/\s+/g, "_").toLowerCase() === agentNameFromTool);
-                const args = JSON.parse(toolCall.function.arguments as string);
-
-                if (agent) {
-                    // Execute Agent
-                    const agentResponse = await this.executeAgent(agent, args.task);
-                    messages.push({ role: "assistant", content: null, toolCalls: [toolCall] } as any);
-                    messages.push({
-                        role: "tool",
-                        name: toolCall.function.name,
-                        content: agentResponse,
-                        toolCallId: toolCall.id
-                    } as any);
-                }
-            }
-
-            // Final synthesis
-            const finalResponse = await this.mistral.chat.complete({
-                model: "mistral-large-latest",
-                messages: messages as any,
+                parameters: z.object({
+                    task: z.string().describe(`Task for the ${agent.name} agent`),
+                }),
+                execute: async ({ task }: { task: string }) => {
+                    console.log(`[Agent Tool] Calling agent ${agent.name} with task: ${task}`);
+                    return await this.executeAgent(agent, task);
+                },
             });
-
-            const finalContent = finalResponse.choices?.[0]?.message?.content;
-            return Array.isArray(finalContent) ? finalContent.join("") : (finalContent || "No response generated.");
         }
 
-        const content = message?.content;
-        return Array.isArray(content) ? content.join("") : (content || "No response generated.");
+        const { text } = await generateText({
+            model: this.mistral("mistral-large-latest"),
+            system: `You are a strict Swarm Manager. Your job is to delegate user tasks to the available agents and tools.
+- ALWAYS use the tools provided to fulfill the request.
+- If an agent is available, use call_[agent_name] to delegate.
+- You also have access to general tools like getWeather and searchWeb.
+- Combine outputs into a final helpful response for the user.`,
+            prompt: prompt,
+            tools: { ...mockTools, ...agentTools },
+            maxSteps: 5,
+        } as any);
+
+        return text;
     }
 
-    private async executeAgent(agent: Agent, task: string | any): Promise<string> {
-        // Ensure task is a string, even if the LLM hallucinated an object structure
-        const safeTask = typeof task === 'string' ? task : JSON.stringify(task);
-        const agentName = agent.name.toLowerCase();
-
-        // 1. Weather Agent Implementation
-        if (agentName.includes("weather")) {
-            try {
-                // Extract city from task using simple regex or just use the task as query
-                // A smarter way is to ask Mistral to extract the city, but let's try a direct approach first
-                // or pass the task to Mistral to formulate the API call.
-
-                // Let's use Mistral to extract location for better accuracy
-                const locationResp = await this.mistral.chat.complete({
-                    model: "mistral-small-latest",
-                    messages: [
-                        { role: "system", content: "Extract the city name from the user request. Return ONLY the city name." },
-                        { role: "user", content: safeTask }
-                    ]
-                });
-                const content = locationResp.choices?.[0]?.message?.content;
-                const city = (typeof content === 'string' ? content.trim() : safeTask);
-
-                // Call wttr.in
-                const response = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=3`);
-                if (!response.ok) return "Failed to fetch weather data.";
-                const text = await response.text();
-                return `Weather Report for ${city}: ${text}`;
-            } catch (e) {
-                console.error("Weather agent failed", e);
-                return "Unable to fetch weather info at this time.";
-            }
-        }
-
-        // 2. Pirate Agent Implementation
-        if (agentName.includes("pirate")) {
-            const response = await this.mistral.chat.complete({
-                model: "mistral-small-latest",
-                messages: [
-                    { role: "system", content: "You are a salty pirate captain. Answer the user's request in thick pirate speak. Arrr!" },
-                    { role: "user", content: safeTask }
-                ]
-            });
-            const content = response.choices?.[0]?.message?.content;
-            return typeof content === 'string' ? content : "Arrr, I lost me tongue!";
-        }
-
-        // 3. Generic Fallback for other agents
-        // If we don't have a specific implementation, we use Mistral to simulated it based on metadata
-        const response = await this.mistral.chat.complete({
-            model: "mistral-small-latest",
-            messages: [
-                { role: "system", content: `You are the '${agent.name}' agent. Description: ${agent.description || "Helpful assistant"}.` },
-                { role: "user", content: safeTask }
-            ]
+    private async executeAgent(agent: Agent, task: string): Promise<string> {
+        const { text } = await generateText({
+            model: this.mistral("mistral-small-latest"),
+            system: agent.system_prompt || `You are the ${agent.name} agent.`,
+            prompt: task,
         });
 
-        const content = response.choices?.[0]?.message?.content;
-        return typeof content === 'string' ? content : (Array.isArray(content) ? content.join("") : "");
+        return text;
     }
 }
