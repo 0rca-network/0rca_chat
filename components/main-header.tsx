@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronRight, Plus, RefreshCw } from 'lucide-react';
+import { ChevronRight, Plus, RefreshCw, Coins, Crown, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreditsModal } from '@/components/credits-modal';
+import { PremiumModal } from '@/components/premium-modal';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { usePrivyWallet } from '@/hooks/use-privy-wallet';
-import { useTokenBalance } from '@/hooks/use-token-balance';
+import { useUserCredits } from '@/hooks/use-user-credits';
 import { NotificationInboxPopover } from '@/components/ui/notification-inbox-popover';
 import { ProfilePopover } from '@/components/ui/profile-popover';
 
@@ -18,8 +19,9 @@ interface MainHeaderProps {
 
 export function MainHeader({ title = "Chat", breadcrumb }: MainHeaderProps) {
     const [isCreditsModalOpen, setIsCreditsModalOpen] = useState(false);
+    const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
     const { walletAddress } = usePrivyWallet();
-    const { formattedBalance, symbol, isLoading, refresh } = useTokenBalance();
+    const { balance, isLoading, refresh } = useUserCredits();
 
     const displayAddress = walletAddress
         ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
@@ -40,16 +42,18 @@ export function MainHeader({ title = "Chat", breadcrumb }: MainHeaderProps) {
                     </button>
                 </div>
 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3">
+                    {/* Credits Button */}
                     <div className="hidden md:flex items-center gap-2">
                         <button
                             onClick={() => setIsCreditsModalOpen(true)}
                             className="h-9 px-4 rounded-xl bg-violet-500/[0.08] border border-violet-500/20 flex items-center gap-2.5 hover:bg-violet-500/[0.15] hover:border-violet-500/30 transition-all duration-300 group shadow-[0_0_15px_rgba(139,92,246,0.05)]"
                         >
-                            <span className="text-[10px] uppercase tracking-[0.2em] text-violet-400 font-black">{symbol}</span>
+                            <Coins className="w-3.5 h-3.5 text-violet-400" />
+                            <span className="text-[10px] uppercase tracking-[0.2em] text-violet-400 font-black">Credits</span>
                             <div className="w-px h-3 bg-violet-500/20" />
                             <span className={cn("text-xs font-bold text-white group-hover:scale-105 transition-transform", isLoading && "animate-pulse")}>
-                                {isLoading ? "..." : formattedBalance}
+                                {isLoading ? "..." : balance.toLocaleString()}
                             </span>
                             <button
                                 onClick={(e) => { e.stopPropagation(); refresh(); }}
@@ -60,6 +64,17 @@ export function MainHeader({ title = "Chat", breadcrumb }: MainHeaderProps) {
                         </button>
                     </div>
 
+                    {/* Premium Button */}
+                    <button
+                        onClick={() => setIsPremiumModalOpen(true)}
+                        className="hidden md:flex h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 items-center gap-2 hover:from-amber-500/20 hover:to-orange-500/20 hover:border-amber-500/30 transition-all duration-300 group shadow-[0_0_15px_rgba(245,158,11,0.05)]"
+                    >
+                        <Crown className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] uppercase tracking-[0.15em] text-amber-400/90 font-bold">Premium</span>
+                        <Sparkles className="w-3 h-3 text-amber-400/60" />
+                    </button>
+
+                    {/* Notifications & Profile */}
                     <div className="flex items-center gap-2 h-9 px-1 rounded-xl bg-white/[0.02] border border-white/[0.05]">
                         <NotificationInboxPopover />
                         <div className="w-px h-4 bg-white/5 mx-1" />
@@ -71,6 +86,7 @@ export function MainHeader({ title = "Chat", breadcrumb }: MainHeaderProps) {
 
 
             <CreditsModal isOpen={isCreditsModalOpen} onClose={() => setIsCreditsModalOpen(false)} />
+            <PremiumModal isOpen={isPremiumModalOpen} onClose={() => setIsPremiumModalOpen(false)} />
         </>
     );
 }
