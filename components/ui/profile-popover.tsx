@@ -17,11 +17,14 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 export function ProfilePopover() {
     const { walletAddress } = usePrivyWallet();
     const { logout } = usePrivy();
+    const router = useRouter();
     const [copied, setCopied] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
 
     const copyToClipboard = () => {
         if (walletAddress) {
@@ -31,12 +34,17 @@ export function ProfilePopover() {
         }
     };
 
+    const navigateTo = (path: string) => {
+        setIsOpen(false);
+        router.push(path);
+    };
+
     const truncatedAddress = walletAddress
         ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
         : "Not Connected";
 
     return (
-        <Popover>
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-all group">
                     <UserCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
@@ -74,14 +82,33 @@ export function ProfilePopover() {
 
                 {/* Quick Actions */}
                 <div className="p-2 space-y-1">
-                    <ProfileMenuItem icon={CreditCard} label="Billing & Credits" />
-                    <ProfileMenuItem icon={Shield} label="Security & Privacy" />
-                    <ProfileMenuItem icon={Settings} label="User Settings" />
+                    <ProfileMenuItem
+                        icon={CreditCard}
+                        label="Billing & Credits"
+                        onClick={() => navigateTo('/settings/billing')}
+                    />
+                    <ProfileMenuItem
+                        icon={Shield}
+                        label="Security & Privacy"
+                        onClick={() => navigateTo('/settings/security')}
+                    />
+                    <ProfileMenuItem
+                        icon={Settings}
+                        label="User Settings"
+                        onClick={() => navigateTo('/settings/profile')}
+                    />
                 </div>
 
                 {/* Footer Actions */}
                 <div className="p-2 mt-2 bg-white/[0.01] border-t border-white/5 flex flex-col gap-1">
-                    <button className="flex items-center gap-3 w-full p-2.5 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-all text-xs font-semibold group">
+                    <button
+                        onClick={() => {
+                            if (walletAddress) {
+                                window.open(`https://cronoscan.com/address/${walletAddress}`, '_blank');
+                            }
+                        }}
+                        className="flex items-center gap-3 w-full p-2.5 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-all text-xs font-semibold group"
+                    >
                         <ExternalLink className="w-4 h-4 text-white/20 group-hover:text-white/40" />
                         <span>View on Explorer</span>
                     </button>

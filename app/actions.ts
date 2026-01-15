@@ -147,3 +147,100 @@ export async function executeOrchestration(
     }
 }
 
+// Notification Types
+export interface Notification {
+    id: string;
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error' | 'update';
+    icon: string;
+    link?: string;
+    created_at: string;
+    is_read?: boolean;
+}
+
+export async function getNotifications(walletAddress?: string): Promise<Notification[]> {
+    const supabase = createSupabaseClient();
+
+    // Fetch global notifications that haven't expired
+    const { data: notifications, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("is_global", true)
+        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+    if (error) {
+        console.error("Error fetching notifications:", error);
+        return [];
+    }
+
+    // If wallet address provided, check which ones are read
+    if (walletAddress && notifications) {
+        const { data: readNotifications } = await supabase
+            .from("user_notification_reads")
+            .select("notification_id")
+            .eq("wallet_address", walletAddress);
+
+        const readIds = new Set(readNotifications?.map(r => r.notification_id) || []);
+
+        return notifications.map(n => ({
+            ...n,
+            is_read: readIds.has(n.id)
+        }));
+    }
+
+    return notifications || [];
+}
+
+export async function markNotificationAsRead(notificationId: string, walletAddress: string): Promise<void> {
+    const supabase = createSupabaseClient();
+
+    const { error } = await supabase
+        .from("user_notification_reads")
+        .upsert({
+            notification_id: notificationId,
+            wallet_address: walletAddress,
+            read_at: new Date().toISOString()
+        }, {
+            onConflict: 'notification_id,wallet_address'
+        });
+
+    if (error) {
+        console.error("Error marking notification as read:", error);
+    }
+}
+
+export async function markAllNotificationsAsRead(walletAddress: string): Promise<void> {
+    const supabase = createSupabaseClient();
+
+    // Get all unread global notifications
+    const { data: notifications } = await supabase
+        .from("notifications")
+        .select("id")
+        .eq("is_global", true);
+
+    if (notifications && notifications.length > 0) {
+        // Get already read notifications
+        const { data: alreadyRead } = await supabase
+            .from("user_notification_reads")
+            .select("notification_id")
+            .eq("wallet_address", walletAddress);
+
+        const alreadyReadIds = new Set(alreadyRead?.map(r => r.notification_id) || []);
+
+        // Insert read records for unread notifications
+        const newReads = notifications
+            .filter(n => !alreadyReadIds.has(n.id))
+            .map(n => ({
+                notification_id: n.id,
+                wallet_address: walletAddress,
+                read_at: new Date().toISOString()
+            }));
+
+        if (newReads.length > 0) {
+            await supabase.from("user_notification_reads").insert(newReads);
+        }
+    }
+}

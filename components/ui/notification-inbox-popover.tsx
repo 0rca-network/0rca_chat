@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -13,92 +13,116 @@ import {
     Mail,
     MessageSquareQuote,
     AlertCircle,
+    Bot,
+    Sparkles,
+    Info,
+    CheckCircle,
+    AlertTriangle,
+    XCircle,
     LucideIcon,
+    Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePrivyWallet } from "@/hooks/use-privy-wallet";
+import {
+    getNotifications,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    Notification as NotificationType
+} from "@/app/actions";
 
-interface Notification {
-    id: number;
-    user: string;
-    action: string;
-    target: string;
-    timestamp: string;
-    unread: boolean;
-    icon: LucideIcon;
+// Icon mapping for notification icons
+const ICON_MAP: Record<string, LucideIcon> = {
+    bell: Bell,
+    bot: Bot,
+    sparkles: Sparkles,
+    info: Info,
+    "check-circle": CheckCircle,
+    "alert-circle": AlertCircle,
+    "alert-triangle": AlertTriangle,
+    "x-circle": XCircle,
+    "git-merge": GitMerge,
+    "file-text": FileText,
+    "clipboard-check": ClipboardCheck,
+    mail: Mail,
+    "message-square-quote": MessageSquareQuote,
+};
+
+function getIconForNotification(iconName: string, type: string): LucideIcon {
+    if (ICON_MAP[iconName]) return ICON_MAP[iconName];
+
+    // Default icons based on type
+    switch (type) {
+        case 'success': return CheckCircle;
+        case 'warning': return AlertTriangle;
+        case 'error': return XCircle;
+        case 'update': return Sparkles;
+        default: return Bell;
+    }
 }
 
-const initialNotifications: Notification[] = [
-    {
-        id: 1,
-        user: "Alicia Keys",
-        action: "merged",
-        target: "PR #105: Dark mode support",
-        timestamp: "10 minutes ago",
-        unread: true,
-        icon: GitMerge,
-    },
-    {
-        id: 2,
-        user: "Daniel Green",
-        action: "shared file",
-        target: "Quarterly Report.pdf",
-        timestamp: "30 minutes ago",
-        unread: true,
-        icon: FileText,
-    },
-    {
-        id: 3,
-        user: "Sophia Turner",
-        action: "assigned you a task",
-        target: "Marketing campaign brief",
-        timestamp: "2 hours ago",
-        unread: false,
-        icon: ClipboardCheck,
-    },
-    {
-        id: 4,
-        user: "Michael Ross",
-        action: "sent you a message",
-        target: "Project feedback discussion",
-        timestamp: "5 hours ago",
-        unread: false,
-        icon: Mail,
-    },
-    {
-        id: 5,
-        user: "Priya Sharma",
-        action: "added a comment",
-        target: "UX Review Notes",
-        timestamp: "1 day ago",
-        unread: false,
-        icon: MessageSquareQuote,
-    },
-    {
-        id: 6,
-        user: "System",
-        action: "alert",
-        target: "Server downtime scheduled",
-        timestamp: "3 days ago",
-        unread: false,
-        icon: AlertCircle,
-    },
-];
-
 function NotificationInboxPopover() {
-    const [notifications, setNotifications] = useState(initialNotifications);
-    const unreadCount = notifications.filter((n) => n.unread).length;
+    const { walletAddress } = usePrivyWallet();
+    const [notifications, setNotifications] = useState<NotificationType[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isPending, startTransition] = useTransition();
     const [tab, setTab] = useState("all");
 
-    const filtered = tab === "unread" ? notifications.filter((n) => n.unread) : notifications;
+    const unreadCount = notifications.filter((n) => !n.is_read).length;
+    const filtered = tab === "unread" ? notifications.filter((n) => !n.is_read) : notifications;
 
-    const markAsRead = (id: number) => {
-        setNotifications(
-            notifications.map((n) => (n.id === id ? { ...n, unread: false } : n)),
+    useEffect(() => {
+        async function loadNotifications() {
+            setIsLoading(true);
+            try {
+                const data = await getNotifications(walletAddress || undefined);
+                setNotifications(data);
+            } catch (error) {
+                console.error("Failed to load notifications:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        loadNotifications();
+    }, [walletAddress]);
+
+    const handleMarkAsRead = (id: string) => {
+        if (!walletAddress) return;
+
+        // Optimistic update
+        setNotifications(prev =>
+            prev.map(n => n.id === id ? { ...n, is_read: true } : n)
         );
+
+        startTransition(async () => {
+            await markNotificationAsRead(id, walletAddress);
+        });
     };
 
-    const markAllAsRead = () => {
-        setNotifications(notifications.map((n) => ({ ...n, unread: false })));
+    const handleMarkAllAsRead = () => {
+        if (!walletAddress) return;
+
+        // Optimistic update
+        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+
+        startTransition(async () => {
+            await markAllNotificationsAsRead(walletAddress);
+        });
+    };
+
+    const formatTimestamp = (dateString: string) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return "Just now";
+        if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        return date.toLocaleDateString();
     };
 
     return (
@@ -125,8 +149,9 @@ function NotificationInboxPopover() {
                         </TabsList>
                         {unreadCount > 0 && (
                             <button
-                                onClick={markAllAsRead}
-                                className="text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-white/60 transition-colors"
+                                onClick={handleMarkAllAsRead}
+                                disabled={isPending}
+                                className="text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-white/60 transition-colors disabled:opacity-50"
                             >
                                 Mark all as read
                             </button>
@@ -135,38 +160,40 @@ function NotificationInboxPopover() {
 
                     {/* Notifications List */}
                     <div className="max-h-80 overflow-y-auto custom-scrollbar">
-                        {filtered.length === 0 ? (
+                        {isLoading ? (
+                            <div className="px-3 py-12 text-center">
+                                <Loader2 className="w-6 h-6 text-white/20 animate-spin mx-auto" />
+                            </div>
+                        ) : filtered.length === 0 ? (
                             <div className="px-3 py-12 text-center text-sm text-white/20 font-mono">
                                 No notifications
                             </div>
                         ) : (
                             filtered.map((n) => {
-                                const Icon = n.icon;
+                                const Icon = getIconForNotification(n.icon, n.type);
                                 return (
                                     <button
                                         key={n.id}
-                                        onClick={() => markAsRead(n.id)}
+                                        onClick={() => handleMarkAsRead(n.id)}
                                         className="flex w-full items-start gap-3 border-b border-white/[0.03] px-4 py-4 text-left hover:bg-white/[0.02] transition-colors relative group"
                                     >
                                         <div className={cn(
                                             "mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-                                            n.unread ? "bg-violet-500/10 text-violet-400" : "bg-white/5 text-white/20"
+                                            !n.is_read ? "bg-violet-500/10 text-violet-400" : "bg-white/5 text-white/20"
                                         )}>
                                             <Icon size={16} />
                                         </div>
                                         <div className="flex-1 space-y-1">
-                                            <p
-                                                className={cn(
-                                                    "text-xs leading-relaxed",
-                                                    n.unread ? "font-semibold text-white" : "text-white/60"
-                                                )}
-                                            >
-                                                <span className="text-white/40">{n.user}</span> {n.action}{" "}
-                                                <span className="font-mono text-violet-400/90">{n.target}</span>
+                                            <p className={cn(
+                                                "text-xs leading-relaxed",
+                                                !n.is_read ? "font-semibold text-white" : "text-white/60"
+                                            )}>
+                                                <span className="text-white/80">{n.title}</span>
                                             </p>
-                                            <p className="text-[10px] text-white/30 font-medium">{n.timestamp}</p>
+                                            <p className="text-[11px] text-white/40 leading-relaxed">{n.message}</p>
+                                            <p className="text-[10px] text-white/30 font-medium">{formatTimestamp(n.created_at)}</p>
                                         </div>
-                                        {n.unread && (
+                                        {!n.is_read && (
                                             <span className="mt-1.5 inline-block size-1.5 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                                         )}
                                     </button>
