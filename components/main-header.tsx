@@ -1,14 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronRight, Plus, RefreshCw, Coins, Crown, Sparkles } from 'lucide-react';
+import { ChevronRight, Plus, RefreshCw, Coins, Crown, Sparkles, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreditsModal } from '@/components/credits-modal';
 import { PremiumModal } from '@/components/premium-modal';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
 import { usePrivyWallet } from '@/hooks/use-privy-wallet';
-import { useUserCredits } from '@/hooks/use-user-credits';
+import { useTokenBalance } from '@/hooks/use-token-balance';
 import { NotificationInboxPopover } from '@/components/ui/notification-inbox-popover';
 import { ProfilePopover } from '@/components/ui/profile-popover';
 
@@ -21,7 +20,7 @@ export function MainHeader({ title = "Chat", breadcrumb }: MainHeaderProps) {
     const [isCreditsModalOpen, setIsCreditsModalOpen] = useState(false);
     const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
     const { walletAddress } = usePrivyWallet();
-    const { balance, isLoading, refresh } = useUserCredits();
+    const { formattedBalance, symbol, isLoading, refresh, faucetUrl } = useTokenBalance();
 
     const displayAddress = walletAddress
         ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
@@ -43,23 +42,23 @@ export function MainHeader({ title = "Chat", breadcrumb }: MainHeaderProps) {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {/* Credits Button */}
+                    {/* Credits (devUSDC.e Balance) Button */}
                     <div className="hidden md:flex items-center gap-2">
                         <button
                             onClick={() => setIsCreditsModalOpen(true)}
-                            className="h-9 px-4 rounded-xl bg-violet-500/[0.08] border border-violet-500/20 flex items-center gap-2.5 hover:bg-violet-500/[0.15] hover:border-violet-500/30 transition-all duration-300 group shadow-[0_0_15px_rgba(139,92,246,0.05)]"
+                            className="h-9 px-4 rounded-xl bg-emerald-500/[0.08] border border-emerald-500/20 flex items-center gap-2.5 hover:bg-emerald-500/[0.15] hover:border-emerald-500/30 transition-all duration-300 group shadow-[0_0_15px_rgba(16,185,129,0.05)]"
                         >
-                            <Coins className="w-3.5 h-3.5 text-violet-400" />
-                            <span className="text-[10px] uppercase tracking-[0.2em] text-violet-400 font-black">Credits</span>
-                            <div className="w-px h-3 bg-violet-500/20" />
+                            <Coins className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="text-[10px] uppercase tracking-[0.15em] text-emerald-400 font-black">{symbol}</span>
+                            <div className="w-px h-3 bg-emerald-500/20" />
                             <span className={cn("text-xs font-bold text-white group-hover:scale-105 transition-transform", isLoading && "animate-pulse")}>
-                                {isLoading ? "..." : balance.toLocaleString()}
+                                {isLoading ? "..." : formattedBalance}
                             </span>
                             <button
                                 onClick={(e) => { e.stopPropagation(); refresh(); }}
                                 className="p-0.5 hover:bg-white/10 rounded transition-colors"
                             >
-                                <RefreshCw className={cn("w-3 h-3 text-violet-400/50 group-hover:text-violet-400 transition-colors", isLoading && "animate-spin")} />
+                                <RefreshCw className={cn("w-3 h-3 text-emerald-400/50 group-hover:text-emerald-400 transition-colors", isLoading && "animate-spin")} />
                             </button>
                         </button>
                     </div>
@@ -83,7 +82,6 @@ export function MainHeader({ title = "Chat", breadcrumb }: MainHeaderProps) {
 
                 </div>
             </header>
-
 
             <CreditsModal isOpen={isCreditsModalOpen} onClose={() => setIsCreditsModalOpen(false)} />
             <PremiumModal isOpen={isPremiumModalOpen} onClose={() => setIsPremiumModalOpen(false)} />

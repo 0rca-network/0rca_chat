@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { usePrivyWallet } from '@/hooks/use-privy-wallet';
+import { useTokenBalance } from '@/hooks/use-token-balance';
 import {
     Crown,
     Check,
@@ -21,7 +22,9 @@ import {
     Infinity,
     Star,
     Wallet,
-    ArrowRight
+    ArrowRight,
+    Loader2,
+    ExternalLink
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -31,55 +34,47 @@ interface PremiumModalProps {
     onClose: () => void;
 }
 
-// Exchange rate: 1 USD = 83 INR
-const USD_TO_INR = 83;
-
 const PLANS = [
     {
         id: 'starter',
         name: 'Starter',
-        description: 'Perfect for trying out 0RCA',
-        priceUSD: 9.99,
-        priceINR: Math.round(9.99 * USD_TO_INR),
+        description: 'Perfect for trying out',
+        priceUSDC: 10,
         period: 'month',
         credits: 1000,
         features: [
-            { text: '1,000 credits/month', icon: Zap },
+            { text: '1,000 AI queries/month', icon: Zap },
             { text: 'Standard response speed', icon: Clock },
             { text: '5 custom agents', icon: Bot },
-            { text: 'Email support', icon: Shield },
+            { text: 'Community support', icon: Shield },
         ],
         popular: false,
-        color: 'white',
     },
     {
         id: 'pro',
         name: 'Pro',
         description: 'Best for power users',
-        priceUSD: 29.99,
-        priceINR: Math.round(29.99 * USD_TO_INR),
+        priceUSDC: 30,
         period: 'month',
         credits: 5000,
         features: [
-            { text: '5,000 credits/month', icon: Zap },
+            { text: '5,000 AI queries/month', icon: Zap },
             { text: 'Priority processing', icon: Clock },
             { text: 'Unlimited agents', icon: Bot },
             { text: 'Discord community', icon: Shield },
             { text: 'Early access features', icon: Sparkles },
         ],
         popular: true,
-        color: 'violet',
     },
     {
         id: 'enterprise',
         name: 'Enterprise',
-        description: 'For teams and businesses',
-        priceUSD: 99.99,
-        priceINR: Math.round(99.99 * USD_TO_INR),
+        description: 'For teams & businesses',
+        priceUSDC: 100,
         period: 'month',
         credits: 25000,
         features: [
-            { text: '25,000 credits/month', icon: Zap },
+            { text: '25,000 AI queries/month', icon: Zap },
             { text: 'Fastest processing', icon: Clock },
             { text: 'Unlimited everything', icon: Infinity },
             { text: 'Dedicated support', icon: Shield },
@@ -87,26 +82,44 @@ const PLANS = [
             { text: 'API access', icon: Sparkles },
         ],
         popular: false,
-        color: 'amber',
     },
 ];
 
 export function PremiumModal({ isOpen, onClose }: PremiumModalProps) {
     const { walletAddress, connect } = usePrivyWallet();
-    const [selectedPlan, setSelectedPlan] = useState<string | null>('pro');
+    const { formattedBalance, rawBalance, symbol, faucetUrl, refresh } = useTokenBalance();
+    const [selectedPlan, setSelectedPlan] = useState<string>('pro');
     const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
+    const [isProcessing, setIsProcessing] = useState(false);
 
-    const getDiscountedPrice = (price: number) => {
-        return billingPeriod === 'yearly' ? Math.round(price * 10) : price; // 2 months free on yearly
+    const selectedPlanData = PLANS.find(p => p.id === selectedPlan);
+    const getPrice = (price: number) => {
+        return billingPeriod === 'yearly' ? price * 10 : price; // 2 months free on yearly
     };
 
+    const currentPrice = selectedPlanData ? getPrice(selectedPlanData.priceUSDC) : 0;
+    const hasEnoughBalance = rawBalance >= BigInt(currentPrice * 1_000_000); // 6 decimals
+
     const handleSubscribe = async () => {
-        if (!walletAddress) {
-            connect();
+        if (!walletAddress || !selectedPlanData) return;
+
+        if (!hasEnoughBalance) {
+            window.open(faucetUrl, '_blank');
             return;
         }
-        // TODO: Implement Razorpay subscription
-        alert('Subscription feature coming soon! For now, please buy credits directly.');
+
+        setIsProcessing(true);
+
+        // TODO: Implement token transfer for subscription
+        // This would involve:
+        // 1. Get the wallet provider from Privy
+        // 2. Create an ERC-20 transfer transaction
+        // 3. Send tokens to a treasury wallet
+        // 4. Record the subscription in the database
+
+        alert(`Subscription feature coming soon!\n\nYou would pay ${currentPrice} ${symbol} for ${selectedPlanData.name} plan.`);
+
+        setIsProcessing(false);
     };
 
     return (
@@ -128,7 +141,7 @@ export function PremiumModal({ isOpen, onClose }: PremiumModalProps) {
                                 Upgrade to Premium
                             </DialogTitle>
                             <DialogDescription className="text-white/50 mt-2 max-w-md mx-auto">
-                                Unlock unlimited potential with our premium plans. More credits, faster responses, priority support.
+                                Pay with {symbol} tokens. Your balance: <span className="text-emerald-400 font-bold">{formattedBalance} {symbol}</span>
                             </DialogDescription>
                         </DialogHeader>
 
@@ -164,62 +177,72 @@ export function PremiumModal({ isOpen, onClose }: PremiumModalProps) {
                 </div>
 
                 {/* Plans Grid */}
-                <div className="px-8 pb-8">
+                <div className="px-8 pb-6">
                     <div className="grid grid-cols-3 gap-4">
-                        {PLANS.map((plan) => (
-                            <motion.div
-                                key={plan.id}
-                                whileHover={{ scale: 1.02 }}
-                                onClick={() => setSelectedPlan(plan.id)}
-                                className={cn(
-                                    "relative p-5 rounded-2xl border cursor-pointer transition-all",
-                                    selectedPlan === plan.id
-                                        ? "bg-violet-500/10 border-violet-500/50 shadow-[0_0_30px_rgba(139,92,246,0.15)]"
-                                        : "bg-white/[0.02] border-white/[0.05] hover:border-white/10"
-                                )}
-                            >
-                                {plan.popular && (
-                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                        <span className="text-[10px] px-3 py-1 rounded-full bg-violet-500 text-white font-bold uppercase flex items-center gap-1">
-                                            <Star className="w-3 h-3" /> Most Popular
-                                        </span>
-                                    </div>
-                                )}
+                        {PLANS.map((plan) => {
+                            const planPrice = getPrice(plan.priceUSDC);
+                            const canAfford = rawBalance >= BigInt(planPrice * 1_000_000);
 
-                                <div className="mb-4">
-                                    <h3 className="text-lg font-bold text-white">{plan.name}</h3>
-                                    <p className="text-xs text-white/40">{plan.description}</p>
-                                </div>
-
-                                <div className="mb-4">
-                                    <div className="flex items-baseline gap-1">
-                                        <span className="text-3xl font-black text-white">
-                                            ₹{getDiscountedPrice(plan.priceINR).toLocaleString()}
-                                        </span>
-                                        <span className="text-white/40 text-sm">
-                                            /{billingPeriod === 'yearly' ? 'year' : 'month'}
-                                        </span>
-                                    </div>
-                                    <p className="text-[10px] text-white/30 mt-1">
-                                        ${getDiscountedPrice(plan.priceUSD)} USD
-                                    </p>
-                                </div>
-
-                                <div className="space-y-2 mb-4">
-                                    {plan.features.map((feature, idx) => (
-                                        <div key={idx} className="flex items-center gap-2 text-xs text-white/70">
-                                            <feature.icon className="w-3.5 h-3.5 text-violet-400" />
-                                            <span>{feature.text}</span>
+                            return (
+                                <motion.div
+                                    key={plan.id}
+                                    whileHover={{ scale: 1.02 }}
+                                    onClick={() => setSelectedPlan(plan.id)}
+                                    className={cn(
+                                        "relative p-5 rounded-2xl border cursor-pointer transition-all",
+                                        selectedPlan === plan.id
+                                            ? "bg-violet-500/10 border-violet-500/50 shadow-[0_0_30px_rgba(139,92,246,0.15)]"
+                                            : "bg-white/[0.02] border-white/[0.05] hover:border-white/10"
+                                    )}
+                                >
+                                    {plan.popular && (
+                                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                                            <span className="text-[10px] px-3 py-1 rounded-full bg-violet-500 text-white font-bold uppercase flex items-center gap-1">
+                                                <Star className="w-3 h-3" /> Most Popular
+                                            </span>
                                         </div>
-                                    ))}
-                                </div>
+                                    )}
 
-                                <div className={cn(
-                                    "w-full h-1 rounded-full",
-                                    selectedPlan === plan.id ? "bg-violet-500" : "bg-white/5"
-                                )} />
-                            </motion.div>
-                        ))}
+                                    <div className="mb-4">
+                                        <h3 className="text-lg font-bold text-white">{plan.name}</h3>
+                                        <p className="text-xs text-white/40">{plan.description}</p>
+                                    </div>
+
+                                    <div className="mb-4">
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-3xl font-black text-white">
+                                                {planPrice}
+                                            </span>
+                                            <span className="text-emerald-400 text-sm font-bold">
+                                                {symbol}
+                                            </span>
+                                        </div>
+                                        <p className="text-[10px] text-white/30 mt-1">
+                                            /{billingPeriod === 'yearly' ? 'year' : 'month'}
+                                        </p>
+                                        {!canAfford && (
+                                            <p className="text-[10px] text-red-400 mt-1">
+                                                Insufficient balance
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-2 mb-4">
+                                        {plan.features.map((feature, idx) => (
+                                            <div key={idx} className="flex items-center gap-2 text-xs text-white/70">
+                                                <feature.icon className="w-3.5 h-3.5 text-violet-400" />
+                                                <span>{feature.text}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className={cn(
+                                        "w-full h-1 rounded-full",
+                                        selectedPlan === plan.id ? "bg-violet-500" : "bg-white/5"
+                                    )} />
+                                </motion.div>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -233,18 +256,41 @@ export function PremiumModal({ isOpen, onClose }: PremiumModalProps) {
                             <Wallet className="w-5 h-5 mr-2" />
                             Connect Wallet to Subscribe
                         </Button>
+                    ) : !hasEnoughBalance ? (
+                        <div className="space-y-3">
+                            <Button
+                                onClick={() => window.open(faucetUrl, '_blank')}
+                                className="w-full bg-blue-600 hover:bg-blue-500 h-12 text-base font-semibold"
+                            >
+                                Get {symbol} from Faucet
+                                <ExternalLink className="w-4 h-4 ml-2" />
+                            </Button>
+                            <p className="text-center text-white/40 text-xs">
+                                You need {currentPrice} {symbol} but have {formattedBalance} {symbol}
+                            </p>
+                        </div>
                     ) : (
                         <Button
                             onClick={handleSubscribe}
+                            disabled={isProcessing}
                             className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 h-12 text-base font-semibold"
                         >
-                            <Crown className="w-5 h-5 mr-2" />
-                            Subscribe to {PLANS.find(p => p.id === selectedPlan)?.name}
-                            <ArrowRight className="w-4 h-4 ml-2" />
+                            {isProcessing ? (
+                                <>
+                                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                    Processing...
+                                </>
+                            ) : (
+                                <>
+                                    <Crown className="w-5 h-5 mr-2" />
+                                    Pay {currentPrice} {symbol} for {selectedPlanData?.name}
+                                    <ArrowRight className="w-4 h-4 ml-2" />
+                                </>
+                            )}
                         </Button>
                     )}
                     <p className="text-center text-white/30 text-[10px] mt-3">
-                        Cancel anytime • Secure payment via Razorpay
+                        Payments in {symbol} on Cronos Testnet • Development Mode
                     </p>
                 </div>
             </DialogContent>

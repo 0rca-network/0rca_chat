@@ -3,15 +3,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { usePrivyWallet } from "./use-privy-wallet";
 
-// 0RCA Token on Cronos
+// devUSDC.e Token on Cronos Testnet
 const TOKEN_ADDRESS = "0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0";
 
-// Cronos RPC endpoint
-const RPC_URL = "https://evm.cronos.org";
+// Cronos Testnet RPC endpoint
+const RPC_URL = "https://evm-t3.cronos.org";
 
 interface TokenBalanceState {
     balance: string;
     formattedBalance: string;
+    rawBalance: bigint;
     symbol: string;
     decimals: number;
     isLoading: boolean;
@@ -45,8 +46,8 @@ async function jsonRpcCall(method: string, params: any[]): Promise<any> {
 }
 
 // Helper to format balance with decimals
-function formatBalance(hexBalance: string, decimals: number): string {
-    const balanceBigInt = BigInt(hexBalance);
+function formatBalance(hexBalance: string, decimals: number): { formatted: string; raw: bigint } {
+    const balanceBigInt = BigInt(hexBalance || "0x0");
     const divisor = BigInt(10 ** decimals);
     const integerPart = balanceBigInt / divisor;
     const fractionalPart = balanceBigInt % divisor;
@@ -56,26 +57,35 @@ function formatBalance(hexBalance: string, decimals: number): string {
     const formatted = `${integerPart.toLocaleString()}.${fractionalStr}`;
 
     // Clean up trailing zeros
-    return parseFloat(formatted).toLocaleString(undefined, {
+    const cleanFormatted = parseFloat(formatted).toLocaleString(undefined, {
         maximumFractionDigits: 2,
-        minimumFractionDigits: 0,
+        minimumFractionDigits: 2,
     });
+
+    return { formatted: cleanFormatted, raw: balanceBigInt };
 }
 
 export function useTokenBalance() {
     const { walletAddress } = usePrivyWallet();
     const [state, setState] = useState<TokenBalanceState>({
         balance: "0",
-        formattedBalance: "0",
-        symbol: "0RCA",
-        decimals: 18,
+        formattedBalance: "0.00",
+        rawBalance: BigInt(0),
+        symbol: "devUSDC.e",
+        decimals: 6, // USDC typically has 6 decimals
         isLoading: false,
         error: null,
     });
 
     const fetchBalance = useCallback(async () => {
         if (!walletAddress) {
-            setState(prev => ({ ...prev, balance: "0", formattedBalance: "0", isLoading: false }));
+            setState(prev => ({
+                ...prev,
+                balance: "0",
+                formattedBalance: "0.00",
+                rawBalance: BigInt(0),
+                isLoading: false
+            }));
             return;
         }
 
@@ -91,14 +101,15 @@ export function useTokenBalance() {
                 "latest",
             ]);
 
-            // Default to 18 decimals for most ERC-20 tokens
-            const decimals = 18;
-            const formatted = formatBalance(balanceHex, decimals);
+            // devUSDC.e uses 6 decimals like regular USDC
+            const decimals = 6;
+            const { formatted, raw } = formatBalance(balanceHex, decimals);
 
             setState({
-                balance: BigInt(balanceHex).toString(),
+                balance: raw.toString(),
                 formattedBalance: formatted,
-                symbol: "0RCA",
+                rawBalance: raw,
+                symbol: "devUSDC.e",
                 decimals,
                 isLoading: false,
                 error: null,
@@ -116,10 +127,15 @@ export function useTokenBalance() {
     useEffect(() => {
         fetchBalance();
 
-        // Refresh balance every 30 seconds
-        const interval = setInterval(fetchBalance, 30000);
+        // Refresh balance every 15 seconds
+        const interval = setInterval(fetchBalance, 15000);
         return () => clearInterval(interval);
     }, [fetchBalance]);
 
-    return { ...state, refresh: fetchBalance, tokenAddress: TOKEN_ADDRESS };
+    return {
+        ...state,
+        refresh: fetchBalance,
+        tokenAddress: TOKEN_ADDRESS,
+        faucetUrl: "https://faucet.cronos.org/"
+    };
 }
