@@ -19,7 +19,9 @@ import {
     Palette,
     CircleUserRound,
     MoreHorizontal,
-    History
+    History,
+    X,
+    CheckCircle2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -30,9 +32,20 @@ import Image from "next/image"
 import { MainHeader } from "@/components/main-header"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogFooter,
+    DialogClose,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 
 
 // interfaces are now imported from "@/app/actions"
+
 
 
 const ORCHESTRATOR_OPTIONS: DropdownOption[] = [
@@ -58,6 +71,16 @@ export default function ChatPage() {
     const [orchestratorMode, setOrchestratorMode] = useState("auto")
     const [selectedAgents, setSelectedAgents] = useState<string[]>([])
     const [agents, setAgents] = useState<Agent[]>([])
+    const [isAgentDialogOpen, setIsAgentDialogOpen] = useState(false)
+    const [searchQuery, setSearchQuery] = useState("")
+
+    const toggleAgent = (agentId: string) => {
+        setSelectedAgents(prev =>
+            prev.includes(agentId)
+                ? prev.filter(id => id !== agentId)
+                : [...prev, agentId]
+        )
+    }
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -229,10 +252,148 @@ export default function ChatPage() {
                                             <Share2 className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                                             <span className="text-xs">Share</span>
                                         </Button>
-                                        <Button variant="ghost" size="sm" className="text-white/40 hover:text-white/60 gap-2 h-7">
-                                            <History className="w-3.5 h-3.5" />
-                                            <span className="text-xs">Agents</span>
-                                        </Button>
+
+                                        <Dialog open={isAgentDialogOpen} onOpenChange={setIsAgentDialogOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-white/40 hover:text-white/60 gap-2 h-7"
+                                                >
+                                                    <Bot className="w-3.5 h-3.5" />
+                                                    <span className="text-xs">Agents</span>
+                                                    {selectedAgents.length > 0 && (
+                                                        <span className="flex items-center justify-center w-5 h-5 ml-1 text-xs bg-violet-500/20 text-violet-300 rounded-full">
+                                                            {selectedAgents.length}
+                                                        </span>
+                                                    )}
+                                                </Button>
+                                            </DialogTrigger>
+
+                                            <DialogContent className="sm:max-w-xl bg-[#0A0A0B]/95 border-white/10 text-white flex flex-col p-0 overflow-hidden shadow-2xl backdrop-blur-xl rounded-3xl">
+                                                <div className="p-6 pb-2">
+                                                    <div className="flex items-center justify-between mb-6">
+                                                        <DialogTitle className="text-xl font-semibold tracking-tight">Select Agents</DialogTitle>
+                                                        <div className="flex items-center gap-3">
+                                                            <DialogClose asChild>
+                                                                <Button variant="ghost" className="text-white/40 hover:text-white hover:bg-white/5 rounded-xl px-4 py-2 text-sm font-medium transition-colors">Cancel</Button>
+                                                            </DialogClose>
+                                                            <DialogClose asChild>
+                                                                <Button className="bg-white text-black hover:bg-white/90 rounded-xl px-6 py-2 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]">Save</Button>
+                                                            </DialogClose>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mb-6">
+                                                        <div className="flex items-center justify-between mb-3 px-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-sm font-semibold text-white/90">Added ({selectedAgents.length})</span>
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-4 overflow-x-auto py-2 scrollbar-none min-h-[80px]">
+                                                            <AnimatePresence mode="popLayout">
+                                                                {selectedAgents.length === 0 ? (
+                                                                    <motion.div
+                                                                        initial={{ opacity: 0 }}
+                                                                        animate={{ opacity: 1 }}
+                                                                        className="w-full h-16 flex items-center justify-center rounded-2xl border border-dashed border-white/5 bg-white/[0.01]"
+                                                                    >
+                                                                        <span className="text-xs text-white/20">No agents selected yet</span>
+                                                                    </motion.div>
+                                                                ) : (
+                                                                    agents.filter(a => selectedAgents.includes(a.id)).map(agent => (
+                                                                        <motion.div
+                                                                            key={agent.id}
+                                                                            layout
+                                                                            initial={{ opacity: 0, scale: 0.8, x: -20 }}
+                                                                            animate={{ opacity: 1, scale: 1, x: 0 }}
+                                                                            exit={{ opacity: 0, scale: 0.8, x: 20 }}
+                                                                            className="relative group flex-shrink-0"
+                                                                        >
+                                                                            <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-violet-500/10 to-indigo-500/10 border-2 border-white/10 flex items-center justify-center transition-all group-hover:border-violet-500/50 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.2)]">
+                                                                                <Bot className="w-8 h-8 text-white/80 group-hover:text-white transition-colors" />
+                                                                            </div>
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    toggleAgent(agent.id);
+                                                                                }}
+                                                                                className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-[#1A1A1B] border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-[#2A2A2B] transition-all hover:scale-110 shadow-lg"
+                                                                            >
+                                                                                <X size={12} strokeWidth={3} />
+                                                                            </button>
+                                                                        </motion.div>
+                                                                    ))
+                                                                )}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between mb-4 px-1">
+                                                        <span className="text-sm font-semibold text-white/60">Agents ({agents.length})</span>
+                                                        <div className="relative w-full max-w-[240px]">
+                                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                                                            <Input
+                                                                placeholder="Search Agents"
+                                                                className="bg-white/[0.03] border-white/5 rounded-xl pl-9 pr-4 h-9 text-sm focus-visible:ring-violet-500/50 transition-all placeholder:text-white/20"
+                                                                value={searchQuery}
+                                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex-1 overflow-y-auto px-4 pb-6 scrollbar-thin scrollbar-thumb-white/10 max-h-[300px]">
+                                                    <div className="space-y-1">
+                                                        {agents.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase())).map((agent) => {
+                                                            const isSelected = selectedAgents.includes(agent.id);
+                                                            return (
+                                                                <motion.div
+                                                                    key={agent.id}
+                                                                    layout
+                                                                    onClick={() => toggleAgent(agent.id)}
+                                                                    className={cn(
+                                                                        "flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all duration-200 group",
+                                                                        isSelected
+                                                                            ? "bg-white/[0.04]"
+                                                                            : "hover:bg-white/[0.02]"
+                                                                    )}
+                                                                >
+                                                                    <div className="flex items-center gap-4">
+                                                                        <div className={cn(
+                                                                            "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300",
+                                                                            isSelected
+                                                                                ? "bg-violet-500/20 text-violet-400 border border-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.15)]"
+                                                                                : "bg-white/[0.03] text-white/40 group-hover:bg-white/[0.05] group-hover:text-white/60"
+                                                                        )}>
+                                                                            <Bot className="w-6 h-6" />
+                                                                        </div>
+                                                                        <div className="flex flex-col">
+                                                                            <span className={cn(
+                                                                                "text-sm font-semibold transition-colors decoration-violet-500/50 underline-offset-4",
+                                                                                isSelected ? "text-white underline" : "text-white/70 group-hover:text-white"
+                                                                            )}>
+                                                                                {agent.name}
+                                                                            </span>
+                                                                            <span className="text-[11px] text-white/30 font-medium group-hover:text-white/40 transition-colors">{agent.description}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className={cn(
+                                                                        "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                                                                        isSelected
+                                                                            ? "bg-violet-500 border-violet-500 scale-110 shadow-[0_0_10px_rgba(139,92,246,0.4)]"
+                                                                            : "border-white/10 group-hover:border-white/20"
+                                                                    )}>
+                                                                        {isSelected && <CheckCircle2 size={14} className="text-white" />}
+                                                                    </div>
+                                                                </motion.div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            </DialogContent>
+                                        </Dialog>
                                     </div>
                                 </div>
                             }

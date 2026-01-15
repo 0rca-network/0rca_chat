@@ -25,29 +25,35 @@ export class Orchestrator {
     async execute(input: OrchestrationInput): Promise<string> {
         const { prompt, mode, selectedAgentIds } = input;
 
-        const { data: allAgents, error } = await this.supabase
-            .from("agents")
-            .select("*");
-
-        if (error || !allAgents) {
-            throw new Error(`Failed to fetch agents: ${error?.message}`);
+        // Fetch all available agents from DB
+        let allAgents: Agent[] = [];
+        try {
+            const { data, error } = await this.supabase
+                .from("agents")
+                .select("*");
+            if (!error && data) {
+                allAgents = data;
+            }
+        } catch (e) {
+            console.error("Failed to fetch agents:", e);
         }
 
         let activeAgents: Agent[] = [];
 
         if (mode === "manual") {
-            if (!selectedAgentIds || selectedAgentIds.length === 0) {
-                return "Please select at least one agent for Manual Swarm mode.";
+            // Manual mode: use only selected agents
+            if (selectedAgentIds && selectedAgentIds.length > 0) {
+                activeAgents = allAgents.filter((a) => selectedAgentIds.includes(a.id));
             }
-            activeAgents = allAgents.filter((a) => selectedAgentIds.includes(a.id));
+            // If no agents selected in manual mode, we still proceed but with no agent tools
         } else {
-            activeAgents = await this.selectAgentsAutomatically(prompt, allAgents);
+            // Auto mode: let the LLM decide which agents to use (or none)
+            if (allAgents.length > 0) {
+                activeAgents = await this.selectAgentsAutomatically(prompt, allAgents);
+            }
         }
 
-        if (activeAgents.length === 0) {
-            return "No suitable agents found for this task.";
-        }
-
+        // Always proceed to the LLM - agents are optional tools
         return await this.runSwarmWithVercelSDK(prompt, activeAgents);
     }
 
@@ -135,11 +141,12 @@ ${agentDescriptions}
 
         const { text } = await generateText({
             model: this.mistral("mistral-large-latest"),
-            system: `You are a strict Swarm Manager. Your job is to delegate user tasks to the available agents and tools.
-- ALWAYS use the tools provided to fulfill the request.
-- If an agent is available, use call_[agent_name] to delegate.
-- You also have access to general tools like getWeather and searchWeb.
-- Combine outputs into a final helpful response for the user.`,
+            system: `You are 0rca, a helpful and intelligent AI assistant.
+- Answer user questions directly when you can.
+- You have access to specialized agents (via call_[agent_name] tools) that can help with specific tasks.
+- You also have general tools like getWeather, searchWeb, and getStockPrice.
+- Use agents and tools when they add value, but don't force their use if not needed.
+- Be concise, professional, and friendly.`,
             prompt: prompt,
             tools: { ...mockTools, ...agentTools },
             maxSteps: 5,
