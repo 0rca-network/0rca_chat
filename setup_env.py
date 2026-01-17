@@ -1,0 +1,11 @@
+content = """ORCHESTRATOR_PRIVATE_KEY=63918bb7d149f6cc03b40aeff33aff6da1736a1fe1f479f0da95e694698f69dc
+NEXT_PUBLIC_RPC_URL=https://evm-t3.cronos.org
+USDC_ADDRESS=0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0
+NEXT_PUBLIC_SUPABASE_URL=https://ltqrexosyudcntikynua.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0cXJleG9zeXVkY250aWt5bnVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwMTIwNTIsImV4cCI6MjA4MzU4ODA1Mn0.6HVMR1qKif1faIaWc2nM2fG1Q-Q5AhUMzzrsKByyATw
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0cXJleG9zeXVkY250aWt5bnVhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODAxMjA1MiwiZXhwIjoyMDgzNTg4MDUyfQ.1JvfIjxA5QEY_J45wg8l-OkJfvoWDYzaQ7L7ymWTWts
+MISTRAL_API_KEY=4uZhX0M8NHVTtNvrPtLa2KkXluzdQM5u
+"""
+with open(".env.local", "w", encoding="utf-8") as f:
+    f.write(content)
+print("Written .env.local")

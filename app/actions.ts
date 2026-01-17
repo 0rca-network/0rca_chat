@@ -133,11 +133,13 @@ export async function executeOrchestration(
         const mistral = createMistralClient();
         const orchestrator = new Orchestrator(supabase, mistral);
 
+        console.log(`[Action] Starting orchestration for prompt: "${prompt.substring(0, 50)}..."`);
         const result = await orchestrator.execute({
             prompt,
             mode,
             selectedAgentIds
         });
+        console.log(`[Action] Orchestration complete. Result length: ${result.length}`);
 
         return result;
 

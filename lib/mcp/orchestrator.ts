@@ -2,6 +2,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { generateText, tool } from "ai";
 import { z } from "zod";
 import { createMistralClient } from "./clients/mistral";
+import { createFundedTask, signPaymentChallenge } from "../evm/vaultClient";
 
 interface OrchestrationInput {
     prompt: string;
@@ -14,6 +15,7 @@ interface Agent {
     name: string;
     description: string | null;
     system_prompt: string;
+    subdomain?: string;
     data_input?: string;
 }
 
@@ -140,29 +142,127 @@ ${agentDescriptions}
             });
         }
 
-        const { text } = await generateText({
+        console.log(`[Orchestrator] Running generateText with ${agents.length} agents...`);
+        const { text, toolCalls, toolResults } = await generateText({
             model: this.mistral("mistral-large-latest"),
             system: `You are 0rca, a helpful and intelligent AI assistant.
 - Answer user questions directly when you can.
 - You have access to specialized agents (via call_[agent_name] tools) that can help with specific tasks.
 - You also have general tools like getWeather, searchWeb, and getStockPrice.
-- Use agents and tools when they add value, but don't force their use if not needed.
+- IMPORTANT: When a tool or agent returns a result, you MUST summarize it for the USER in your final response. Do not be silent.
 - Be concise, professional, and friendly.`,
             prompt: prompt,
             tools: { ...mockTools, ...agentTools },
             maxSteps: 5,
         } as any);
 
+        console.log(`[Orchestrator] generateText finished. Tool calls: ${toolCalls?.length || 0}`);
+        if (toolResults && toolResults.length > 0) {
+            console.log(`[Orchestrator] Tool results received: ${toolResults.length}`);
+        }
+
         return text;
     }
 
     private async executeAgent(agent: Agent, task: string): Promise<string> {
-        const { text } = await generateText({
-            model: this.mistral("mistral-small-latest"),
-            system: agent.system_prompt || `You are the ${agent.name} agent.`,
-            prompt: task,
-        });
+        if (!task || task === "undefined") {
+            task = "Please analyze the security status.";
+        }
+        console.log(`[Orchestrator] Request to execute using agent: ${agent.name} with task: ${task}`);
 
-        return text;
+        // HARDCODED MAPPING FOR DEMO
+        // In production, this would come from the 'agents' table or IdentityRegistry
+        let endpoint = "";
+        let vaultAddress = "";
+
+        // Check if this is our deployed agent
+        // Assuming the agent in DB is named "MySovereignAgent" or created as such
+        // If not found, we can default to using the live URL for ANY agent for this demo
+        // endpoint = "https://agent-7a31b8c0.0rca.live/agent";
+        // vaultAddress = "0xe7bad567ed213efE7Dd1c31DF554461271356F30"; 
+
+        // For robustness, let's use it if the agent name matches or if we force it
+        // Or better yet, we can try to fetch it if we had metadata.
+        // For now, I will assume ANY agent execution for "MySovereignAgent" goes there.
+
+        if (agent.subdomain) {
+            endpoint = `https://${agent.subdomain}.0rca.live/agent`;
+            // Default vault for demo, in prod this could be in DB too
+            vaultAddress = "0xe7bad567ed213efE7Dd1c31DF554461271356F30";
+        } else if (agent.name.trim() === "MySovereignAgent" || agent.name.includes("Sovereign")) {
+            endpoint = "https://agent-7d95b47a.0rca.live/agent";
+            vaultAddress = "0xe7bad567ed213efE7Dd1c31DF554461271356F30";
+        }
+
+        if (!endpoint) {
+            console.log(`[Orchestrator] No endpoint found for ${agent.name}, using Mock LLM.`);
+            const { text } = await generateText({
+                model: this.mistral("mistral-small-latest"),
+                system: agent.system_prompt || `You are the ${agent.name} agent.`,
+                prompt: task,
+            });
+            return text;
+        }
+
+        try {
+            // 2. Fund Task
+            console.log(`[Orchestrator] Funding task via Sovereign Vault...`);
+            const taskId = await createFundedTask(vaultAddress, "0.1");
+            console.log(`[Orchestrator] Task Funded: ${taskId}`);
+
+            // 3. Call Agent
+            console.log(`[Orchestrator] Dispatching to Agent...`);
+            let response = await fetch(endpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-TASK-ID": taskId
+                },
+                body: JSON.stringify({
+                    prompt: task,
+                    taskId: taskId
+                })
+            });
+
+            // x402 Handshake
+            if (response.status === 402) {
+                console.log(`[Orchestrator] Received 402 Payment Required. Handshaking...`);
+                const challenge = response.headers.get("PAYMENT-REQUIRED");
+                if (!challenge) {
+                    throw new Error("402 response missing PAYMENT-REQUIRED header");
+                }
+
+                const signature = await signPaymentChallenge(challenge);
+                console.log(`[Orchestrator] Challenge signed. Re-submitting with X-PAYMENT...`);
+
+                response = await fetch(endpoint, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-TASK-ID": taskId,
+                        "X-PAYMENT": signature
+                    },
+                    body: JSON.stringify({
+                        prompt: task,
+                        taskId: taskId
+                    })
+                });
+            }
+
+            if (response.status !== 200) {
+                const errText = await response.text();
+                console.error(`[Orchestrator] Agent Error (${response.status}): ${errText}`);
+                return `Error from Agent: ${response.status} ${errText}`;
+            }
+
+            const data = await response.json();
+            const result = data.result || JSON.stringify(data);
+            console.log(`[Orchestrator] Agent returned: ${result.substring(0, 100)}...`);
+            return result;
+
+        } catch (e: any) {
+            console.error(`[Orchestrator] Execution Failed:`, e);
+            return `Execution Failed: ${e.message}`;
+        }
     }
 }
