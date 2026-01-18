@@ -61,7 +61,7 @@ export async function getChatByHash(hash: string): Promise<Chat | null> {
         .from("chats")
         .select("*")
         .eq("hash", hash)
-        .single();
+        .maybeSingle();
 
     if (error) {
         console.error("Error fetching chat by hash:", error);

@@ -52,12 +52,12 @@ const ORCHESTRATOR_OPTIONS: DropdownOption[] = [
     { id: "manual", label: "Manual Swarm", icon: Cpu, color: "#45B7D1" },
 ];
 
-export default function ChatPage() {
-    const params = useParams()
+export default function ChatPage({ params }: { params: Promise<{ hash: string }> }) {
+    const { hash } = React.use(params)
     const searchParams = useSearchParams()
-    const hash = params.hash as string
     const firstMsg = searchParams.get("firstMsg")
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const hasProcessedFirstMsg = useRef(false)
 
     useEffect(() => {
         console.log("[DEBUG] ChatPage Mounted - Version: 13:00-F");
@@ -106,7 +106,8 @@ export default function ChatPage() {
                     const history = await getChatMessages(chat.id)
                     setMessages(history)
 
-                    if (history.length === 0 && firstMsg) {
+                    if (history.length === 0 && firstMsg && !hasProcessedFirstMsg.current) {
+                        hasProcessedFirstMsg.current = true
                         handleSendMessage(firstMsg, chat.id)
                     }
                 }
@@ -249,17 +250,53 @@ export default function ChatPage() {
                                     </div>
 
                                     <div className={cn(
-                                        "max-w-[80%] rounded-2xl px-5 py-3 text-sm leading-relaxed relative",
+                                        "max-w-[85%] rounded-2xl px-5 py-3 text-sm leading-relaxed relative overflow-hidden",
                                         msg.role === "assistant"
                                             ? "bg-white/[0.03] border border-white/[0.05] text-white/90 shadow-2xl"
-                                            : "bg-violet-600 text-white shadow-lg shadow-violet-500/10"
+                                            : "bg-violet-600 text-white shadow-lg shadow-violet-500/10 ml-auto"
                                     )}>
                                         <div className={cn(
-                                            "whitespace-pre-wrap",
-                                            msg.role === "assistant" ? "prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:border prose-pre:border-white/10" : "font-medium"
+                                            "break-words overflow-x-auto",
+                                            msg.role === "assistant" ? "whitespace-normal prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:border prose-pre:border-white/10 prose-pre:rounded-xl prose-code:text-violet-300 prose-code:bg-violet-500/10 prose-code:px-1 prose-code:rounded prose-blockquote:border-l-violet-500 prose-blockquote:bg-violet-500/5 prose-blockquote:py-1 prose-blockquote:px-4 prose-a:text-violet-400 hover:prose-a:text-violet-300" : "whitespace-pre-wrap font-medium"
                                         )}>
                                             {msg.role === "assistant" ? (
-                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={{
+                                                        p: ({ children }) => <p className="mb-4 last:mb-0 leading-relaxed text-white/80">{children}</p>,
+                                                        code({ node, inline, className, children, ...props }: any) {
+                                                            const match = /language-(\w+)/.exec(className || '')
+                                                            return !inline ? (
+                                                                <div className="relative group my-4">
+                                                                    <div className="absolute -top-3 left-4 px-2 py-1 bg-[#1A1A1B] border border-white/10 rounded-md text-[10px] text-white/40 font-mono z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        {match ? match[1].toUpperCase() : 'CODE'}
+                                                                    </div>
+                                                                    <pre className="p-4 rounded-xl bg-black/40 border border-white/10 overflow-x-auto custom-scrollbar">
+                                                                        <code className={cn(className, "text-sm text-violet-300 font-mono")} {...props}>
+                                                                            {children}
+                                                                        </code>
+                                                                    </pre>
+                                                                </div>
+                                                            ) : (
+                                                                <code className="bg-violet-500/10 text-violet-300 px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
+                                                                    {children}
+                                                                </code>
+                                                            )
+                                                        },
+                                                        table: ({ children }) => (
+                                                            <div className="overflow-x-auto my-6 rounded-xl border border-white/10 bg-white/[0.02]">
+                                                                <table className="w-full text-left border-collapse">{children}</table>
+                                                            </div>
+                                                        ),
+                                                        th: ({ children }) => <th className="p-3 bg-white/5 border-b border-white/10 font-semibold text-xs text-white/60 uppercase tracking-wider">{children}</th>,
+                                                        td: ({ children }) => <td className="p-3 border-b border-white/5 text-sm text-white/80">{children}</td>,
+                                                        ul: ({ children }) => <ul className="list-disc pl-6 mb-4 space-y-2 text-white/80">{children}</ul>,
+                                                        ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 space-y-2 text-white/80">{children}</ol>,
+                                                        h1: ({ children }) => <h1 className="text-xl font-bold mb-4 mt-6 text-white">{children}</h1>,
+                                                        h2: ({ children }) => <h2 className="text-lg font-bold mb-3 mt-5 text-white/90">{children}</h2>,
+                                                        h3: ({ children }) => <h3 className="text-md font-bold mb-2 mt-4 text-white/80">{children}</h3>,
+                                                    }}
+                                                >
                                                     {msg.content}
                                                 </ReactMarkdown>
                                             ) : (
