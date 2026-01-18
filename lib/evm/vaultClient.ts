@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { GasStationClient } from "@kyuso/crogas";
 
 const VAULT_ABI = [
     "function createTask(bytes32 taskId, uint256 amount) external",
@@ -35,6 +36,44 @@ export async function settleFundedTask(
     console.log(`[VaultClient] Task Settled (Spent): ${tx.hash}`);
 
     return tx.hash;
+}
+
+export async function settleFundedTaskWithGasStation(
+    vaultAddress: string,
+    taskId: string,
+    amount: string
+): Promise<string> {
+    const privateKey = process.env.ORCHESTRATOR_PRIVATE_KEY;
+    if (!privateKey) throw new Error("Missing ORCHESTRATOR_PRIVATE_KEY");
+
+    const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL!);
+    const wallet = new ethers.Wallet(privateKey, provider);
+    const amountUnits = ethers.parseUnits(amount, 6);
+
+    console.log(`[VaultClient] (Gasless-Settle) Settling Task ${taskId} via Kyuso...`);
+
+    const gas = new GasStationClient({
+        apiUrl: "http://144.126.253.20",
+        wallet: wallet,
+        chainId: 338,
+        usdcAddress: "0x38Bf87D7281A2F84c8ed5aF1410295f7BD4E20a1"
+    });
+
+    const vaultInterface = new ethers.Interface(VAULT_ABI);
+    const data = vaultInterface.encodeFunctionData("spend", [taskId, amountUnits]);
+
+    const result = await gas.execute({
+        to: vaultAddress,
+        data: data,
+        gasLimit: BigInt(200000)
+    });
+
+    if (!result.success) {
+        throw new Error(`Kyuso Settle failed: ${result.txHash}`);
+    }
+
+    console.log(`[VaultClient] (Gasless-Settle) Success! Tx: ${result.txHash}`);
+    return result.txHash;
 }
 
 export async function createFundedTask(
@@ -142,6 +181,47 @@ export async function createFundedTaskFromSigner(
     await txTask.wait();
     console.log(`[VaultClient] (User) Task Created: ${txTask.hash}`);
 
+    return taskId;
+}
+
+export async function createFundedTaskFromSignerWithGasStation(
+    vaultAddress: string,
+    amount: string,
+    signer: any, // Use any to allow Signer or Wallet
+    usdcAddress: string,
+    existingTaskId?: string
+): Promise<string> {
+    const taskId = existingTaskId || ethers.hexlify(ethers.randomBytes(32));
+    const amountUnits = ethers.parseUnits(amount, 6);
+
+    console.log(`[VaultClient] (User-CroGas) Using Task ID: ${taskId}`);
+
+    // 1. Initialize Gas Station
+    const gas = new GasStationClient({
+        apiUrl: "http://144.126.253.20",
+        wallet: signer,
+        chainId: 338,
+        usdcAddress: "0x38Bf87D7281A2F84c8ed5aF1410295f7BD4E20a1" // CroGas Relayer uses tUSDC
+    });
+
+    // 2. Encode the createTask call
+    const vaultInterface = new ethers.Interface(VAULT_ABI);
+    const data = vaultInterface.encodeFunctionData("createTask", [taskId, amountUnits]);
+
+    console.log(`[VaultClient] (User-CroGas) Executing gasless createTask...`);
+
+    // 3. Execute via CroGas
+    const result = await gas.execute({
+        to: vaultAddress,
+        data: data,
+        gasLimit: BigInt(200000)
+    });
+
+    if (!result.success) {
+        throw new Error(`CroGas execution failed: ${result.txHash}`);
+    }
+
+    console.log(`[VaultClient] (User-CroGas) Task Created! Tx: ${result.txHash}`);
     return taskId;
 }
 

@@ -7,7 +7,7 @@ The 0rca Network is a layered architecture designed to bridge the gap between La
 ### 1. Application Layer (0rca Chat)
 The premium entry point for users. It provides a unified chat interface that handles:
 - **Wallet Integration**: Connection via Privy/Ethers.
-- **On-Chain Funding**: Direct USDC task funding from the user's wallet.
+- **On-Chain Funding**: Direct USDC task funding via **Kyuso CroGas** (100% gasless).
 - **Signature Handshaking**: Signing x402 challenges as proof-of-human-intent.
 
 ### 2. Orchestration Layer (The Brain)
@@ -25,7 +25,7 @@ The worker bees of the network. Each agent is a standalone microservice:
 ### 4. Settlement Layer (Sovereign Vaults)
 Physical smart contracts on the **Cronos zkEVM** that enforce the economy:
 - **Non-Custodial Escrow**: Funds are locked to a Task ID and can only be claimed by the registered Agent.
-- **CroGas Integration**: Enables agents to settle tasks gaslessly by paying transaction fees in USDC via meta-transactions.
+- **Kyuso CroGas Integration**: Enables agents and the orchestrator to settle tasks gaslessly by paying transaction fees in USDC via meta-transactions.
 
 ---
 
@@ -39,7 +39,7 @@ The x402 protocol is the core innovation of 0rca, creating a "Double-Handshake" 
 4.  **Deduction (Handshake A)**: Frontend detects the signal and prompts the **User's Wallet** to fund the task on-chain in the Sovereign Vault (USDC deduction).
 5.  **Authorization (Handshake B)**: User signs the cryptographic challenge.
 6.  **Resolution**: Orchestrator re-submits the task to the Agent with the `X-PAYMENT` signature.
-7.  **Settlement**: Agent verifies the signature/escrow, completes the work, and calls `vault.spend()` to claim the reward.
+7.  **Settlement**: Agent verifies the signature/escrow, completes the work, and triggers the Vault to release funds gaslessly using the **Kyuso CroGas Relayer**.
 
 ---
 
@@ -63,7 +63,7 @@ sequenceDiagram
     User-->>UI: Signature
     UI->>Orch: POST /orchestrate (with Signature)
     Orch->>Agent: POST /agent (with X-PAYMENT)
-    Agent->>Vault: spend(taskId) [Claim]
+    Agent->>Vault: spend(taskId) [Gasless Kyuso Claim]
     Agent-->>Orch: Result Data
     Orch-->>UI: Final Markdown Response
 ```

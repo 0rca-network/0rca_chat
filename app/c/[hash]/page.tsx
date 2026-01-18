@@ -30,7 +30,7 @@ import { Button } from "@/components/ui/button"
 import { PromptInputBox } from "@/components/ui/ai-prompt-box"
 import { FluidDropdown, DropdownOption } from "@/components/ui/fluid-dropdown"
 import { getAgents, executeOrchestration, getChatByHash, getChatMessages, saveMessage, Agent, Message } from "@/app/actions"
-import { createFundedTaskFromSigner } from "@/lib/evm/vaultClient"
+import { createFundedTaskFromSignerWithGasStation } from "@/lib/evm/vaultClient"
 import Image from "next/image"
 import { MainHeader } from "@/components/main-header"
 import ReactMarkdown from 'react-markdown'
@@ -178,7 +178,7 @@ export default function ChatPage({ params }: { params: Promise<{ hash: string }>
                                     const vault = "0xe7bad567ed213efE7Dd1c31DF554461271356F30";
                                     const usdc = "0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0";
 
-                                    await createFundedTaskFromSigner(vault, "0.1", signer, usdc, taskId);
+                                    await createFundedTaskFromSignerWithGasStation(vault, "0.1", signer, usdc, taskId);
                                     console.log(`[Flow] Task funding successful.`);
                                 } catch (fundErr: any) {
                                     console.error("[Flow] Failed to fund task on-chain:", fundErr);

@@ -8,7 +8,7 @@
 
 - **Master Orchestrator**: A high-level brain that intelligently routes complex user prompts to specialized sub-agents.
 - **Sovereign Agent Vaults**: Trustless escrow system where USDC is only released to agents upon verifiable task completion.
-- **x402 Payment Handshake**: An industry-first HTTP-to-OnChain payment protocol that handles `402 Payment Required` challenges natively.
+- **Kyuso CroGas Integration**: The first network to offer a **Gasless-AI** experience, where users and agents pay for Cronos gas using USDC.
 - **Micro-Agent Execution**: Deploy lightweight, specialized agents (CrewAI, LangChain, Agno) that live as independent Kubernetes microservices.
 - **Cloud-Native Deployment**: Seamlessly deploy and scale agent services using our integrated Kubernetes build-and-deploy pipeline.
 
@@ -16,7 +16,7 @@
 
 - **Frontend**: Next.js 15 (App Router) with high-fidelity Tailwind CSS & Framer Motion animations.
 - **Orchestration**: Vercel AI SDK integration with Mistral Large for intelligent multi-agent coordination.
-- **Settlement**: Ethers.js + Cronos zkEVM Smart Contracts (USDC-based).
+- **Settlement**: Kyuso CroGas SDK + Cronos zkEVM Smart Contracts.
 - **Execution**: Python-based Agent SDK with x402 support and FastAPI server.
 - **Infrastructure**: Kubernetes (DigitalOcean/Self-hosted) with automated Kaniko build pipelines.
 
@@ -33,7 +33,7 @@
 
 ### 1. Prerequisites
 - Node.js 22+
-- A Cronos zkEVM Testnet wallet with USDC and CRO.
+- A Cronos zkEVM Testnet wallet with USDC (No CRO required!).
 - Supabase account for agent discovery.
 
 ### 2. Installation

@@ -3,7 +3,7 @@ import { generateText, tool } from "ai";
 import { ethers } from "ethers";
 import { z } from "zod";
 import { createMistralClient } from "./clients/mistral";
-import { createFundedTask, signPaymentChallenge, getUSDCBalance, settleFundedTask } from "../evm/vaultClient";
+import { createFundedTask, signPaymentChallenge, getUSDCBalance, settleFundedTask, settleFundedTaskWithGasStation } from "../evm/vaultClient";
 
 // Bypass self-signed certificate errors for agent communication
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -358,8 +358,8 @@ REQUIRED WORKFLOW:
             // NEW: Settle the task on-chain since the agent bot might not have gas
             if (taskId && vaultAddress) {
                 try {
-                    console.log(`[Orchestrator] Settling task ${taskId} on-chain...`);
-                    await settleFundedTask(vaultAddress, taskId, "0.1");
+                    console.log(`[Orchestrator] Settling task ${taskId} on-chain via Kyuso...`);
+                    await settleFundedTaskWithGasStation(vaultAddress, taskId, "0.1");
                     console.log(`[Orchestrator] Task settlement successful.`);
                 } catch (settleErr: any) {
                     console.warn(`[Orchestrator] Task settlement failed (this might be okay if agent already spent it):`, settleErr.message);
