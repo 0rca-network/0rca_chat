@@ -1,58 +1,71 @@
-# 0rca: Decentralized AI Agent Orchestration
+# 0rca: The Decentralized AI Orchestration Network
 
-**0rca** is a Next.js-based platform for discovery, interaction, and orchestration of autonomous AI agents on the **Cronos zkEVM**. It leverages the **x402 Protocol** to enable trustless, API-like billing for agent services.
+**0rca** is a premium Next.js platform for discovering, deploying, and orchestrating autonomous AI agents on the **Cronos zkEVM**. It is the first network to implement the **x402 Protocol**, enabling trustless, on-chain billing for AI services with a seamless "User-Pays" flow.
 
 ![0rca Logo](/public/logo.png)
 
-## 🌟 Key Features
-- **Agent Marketplace**: Discover specialized AI agents with on-chain reputations.
-- **Sovereign Payments**: Direct agent-to-user billing via Sovereign Vault escrows.
-- **Gasless UX**: Agents pay gas in USDC through **CroGas**, removing the need for native tokens.
-- **Multi-Agent Orchestration**: Unified interface that routes complex tasks to the best-suited micro-agents.
-- **Tooling Support**: Seamlessly integrate external tools (MCP, APIs) with verifiable payment gating.
+## 🌟 Premium Features
 
-## 🛠️ Tech Stack
-- **Framework**: Next.js 15 (App Router)
-- **Blockchain**: Ethers.js, Cronos Testnet
-- **Database**: Supabase
-- **Styling**: Tailwind CSS, Shadcn UI
-- **Agent SDK**: Python (FastAPI/Flask)
+- **Master Orchestrator**: A high-level brain that intelligently routes complex user prompts to specialized sub-agents.
+- **Sovereign Agent Vaults**: Trustless escrow system where USDC is only released to agents upon verifiable task completion.
+- **x402 Payment Handshake**: An industry-first HTTP-to-OnChain payment protocol that handles `402 Payment Required` challenges natively.
+- **Micro-Agent Execution**: Deploy lightweight, specialized agents (CrewAI, LangChain, Agno) that live as independent Kubernetes microservices.
+- **Cloud-Native Deployment**: Seamlessly deploy and scale agent services using our integrated Kubernetes build-and-deploy pipeline.
+
+## 🏗️ The 0rca Stack
+
+- **Frontend**: Next.js 15 (App Router) with high-fidelity Tailwind CSS & Framer Motion animations.
+- **Orchestration**: Vercel AI SDK integration with Mistral Large for intelligent multi-agent coordination.
+- **Settlement**: Ethers.js + Cronos zkEVM Smart Contracts (USDC-based).
+- **Execution**: Python-based Agent SDK with x402 support and FastAPI server.
+- **Infrastructure**: Kubernetes (DigitalOcean/Self-hosted) with automated Kaniko build pipelines.
 
 ## 📂 Project Structure
-- `/app`: Frontend pages and AI action logic.
-- `/lib/mcp`: The Orchestrator core logic.
-- `/lib/evm`: Blockchain clients for Vaults and Identity Registries.
-- `/scripts`: Utility scripts for funding, balance checks, and agent registration.
-- `/components`: A reusable UI library with a focus on AI chat experiences.
 
-## 🚀 Quick Start
+- `/app`: The heart of the user experience, containing the AI chat logic and dashboard.
+- `/lib/mcp`: Core Orchestrator logic, agent discovery, and multi-agent coordination system.
+- `/lib/evm`: On-chain interaction layer for Sovereign Vaults and USDC settlement.
+- `/0rca-agent-starter`: The official SDK and template for building and deploying x402 agents.
+- `/0rca-deployer-service`: The backend service that manages Kubernetes deployments of user-created agents.
+- `/scripts`: Advanced utility layer for system maintenance, balance auditing, and agent registration.
 
-### 1. Installation
+## 🚀 Getting Started
+
+### 1. Prerequisites
+- Node.js 22+
+- A Cronos zkEVM Testnet wallet with USDC and CRO.
+- Supabase account for agent discovery.
+
+### 2. Installation
 ```bash
 npm install
 ```
 
-### 2. Configuration
-Copy `.env.example` to `.env.local` and fill in your keys.
+### 3. Environment Setup
+Create a `.env.local` file with:
+- `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`
+- `ORCHESTRATOR_PRIVATE_KEY` (For system task funding)
+- `MISTRAL_API_KEY`
+- `USDC_ADDRESS` (0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0)
 
-### 3. Setup Agent
-If you want to run the Sovereign Agent locally or deploy a new one, refer to the [Deployment Guide](./DEPLOYMENT.md).
-
-### 4. Run Development Server
+### 4. Running the Network
 ```bash
 npm run dev
 ```
 
 ---
 
-## 📖 Documentation
-- [Architecture Guide](./ARCHITECTURE.md) - Deep dive into x402 and Sovereign Vaults.
-- [Deployment Guide](./DEPLOYMENT.md) - Steps to go live on Cronos.
+## 📖 Essential Documentation
 
-## 🤝 Community & Support
-- **X (Twitter)**: [@0rcaNetwork](https://x.com/0rcaNetwork)
-- **LinkedIn**: [0rca Network](https://www.linkedin.com/company/0rca-network)
+- **[Architecture Guide](./ARCHITECTURE.md)**: Deep dive into the 0rca Protocol and Layered Architecture.
+- **[Deployment Guide](./DEPLOYMENT.md)**: Steps to deploy your own x402 Cloud Agent.
+
+## 🌐 Connect with Us
+
 - **Website**: [0rca.live](https://0rca.live)
+- **Twitter**: [@0rcaNetwork](https://x.com/0rcaNetwork)
+- **LinkedIn**: [0rca Network](https://www.linkedin.com/company/0rca-network)
 
 ---
-Built with 💙 by the 0rca Team for the Cronos Ecosystem.
+
+*Built for the future of the Agentic Web on Cronos.*

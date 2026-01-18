@@ -172,9 +172,6 @@ export default function ChatPage() {
                                 const browserProvider = new ethers.BrowserProvider(ethProvider);
                                 const signer = await browserProvider.getSigner();
 
-                                const proceed = confirm(`Agent ${agentName} requires a 0.1 USDC payment to fulfill this request.\n\nTask ID: ${taskId}\n\nProceed with on-chain funding?`);
-                                if (!proceed) return;
-
                                 console.log(`[Flow] funding Task ID ${taskId} on-chain via User Wallet...`);
                                 try {
                                     const vault = "0xe7bad567ed213efE7Dd1c31DF554461271356F30";
