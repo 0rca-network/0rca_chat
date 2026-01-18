@@ -44,9 +44,9 @@ export function CreditsModal({ isOpen, onClose }: CreditsModalProps) {
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-lg bg-[#0A0A0B] border-white/10 text-white p-0 overflow-hidden rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-                {/* Header */}
-                <div className="relative p-6 pb-4">
+            <DialogContent className="sm:max-w-lg bg-[#0A0A0B] border-white/10 text-white p-0 overflow-hidden rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col max-h-[85vh]">
+                {/* Header - Fixed */}
+                <div className="relative p-6 pb-4 shrink-0">
                     <div className="absolute top-0 left-0 w-full h-32 overflow-hidden z-0">
                         <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-transparent to-teal-500/10" />
                     </div>
@@ -58,18 +58,19 @@ export function CreditsModal({ isOpen, onClose }: CreditsModalProps) {
                                 </div>
                                 Your Balance
                             </DialogTitle>
-                            <DialogDescription className="text-white/50 mt-2">
+                            <DialogDescription className="text-white/50 mt-2 text-xs">
                                 Credits are powered by {symbol} on Cronos Testnet
                             </DialogDescription>
                         </DialogHeader>
                     </div>
                 </div>
 
-                {/* Balance Display */}
-                <div className="px-6 pb-4">
+                {/* Scrollable Body */}
+                <div className="flex-1 overflow-y-auto px-6 space-y-4 pb-6 scrollbar-thin scrollbar-thumb-white/10">
+                    {/* Balance Display */}
                     <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20">
                         <div className="flex items-center justify-between mb-2">
-                            <p className="text-white/40 text-xs uppercase tracking-wider font-bold">Current Balance</p>
+                            <p className="text-white/40 text-[10px] uppercase tracking-wider font-bold">Current Balance</p>
                             <button
                                 onClick={refresh}
                                 disabled={isLoading}
@@ -86,15 +87,13 @@ export function CreditsModal({ isOpen, onClose }: CreditsModalProps) {
                         </div>
                         <p className="text-white/30 text-xs mt-2">≈ ${formattedBalance} USD (1:1 with USDC)</p>
                     </div>
-                </div>
 
-                {/* Token Contract Info */}
-                <div className="px-6 pb-4">
+                    {/* Token Contract Info */}
                     <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.05]">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-white/40 text-[10px] uppercase tracking-wider font-bold mb-1">Token Contract</p>
-                                <p className="text-xs font-mono text-white/60">
+                                <p className="text-[10px] font-mono text-white/60">
                                     {tokenAddress.slice(0, 10)}...{tokenAddress.slice(-8)}
                                 </p>
                             </div>
@@ -110,10 +109,8 @@ export function CreditsModal({ isOpen, onClose }: CreditsModalProps) {
                             </button>
                         </div>
                     </div>
-                </div>
 
-                {/* Get devUSDC.e Section */}
-                <div className="px-6 pb-6">
+                    {/* Get devUSDC.e Section */}
                     <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20">
                         <div className="flex items-start gap-4">
                             <div className="w-12 h-12 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0">
@@ -121,15 +118,15 @@ export function CreditsModal({ isOpen, onClose }: CreditsModalProps) {
                             </div>
                             <div className="flex-1">
                                 <h3 className="text-base font-bold text-white mb-1">Get Test Tokens</h3>
-                                <p className="text-white/50 text-sm mb-4">
+                                <p className="text-white/50 text-xs mb-4">
                                     Use the Cronos Faucet to get free {symbol} tokens for testing.
-                                    These tokens are used as credits for premium features.
+                                    These tokens are used as credits.
                                 </p>
 
                                 {!walletAddress ? (
                                     <Button
                                         onClick={connect}
-                                        className="w-full bg-blue-600 hover:bg-blue-500 h-11"
+                                        className="w-full bg-blue-600 hover:bg-blue-500 h-10 text-xs"
                                     >
                                         <Wallet className="w-4 h-4 mr-2" />
                                         Connect Wallet First
@@ -137,7 +134,7 @@ export function CreditsModal({ isOpen, onClose }: CreditsModalProps) {
                                 ) : (
                                     <Button
                                         onClick={() => window.open(faucetUrl, '_blank')}
-                                        className="w-full bg-blue-600 hover:bg-blue-500 h-11"
+                                        className="w-full bg-blue-600 hover:bg-blue-500 h-10 text-xs"
                                     >
                                         <Droplets className="w-4 h-4 mr-2" />
                                         Open Cronos Faucet
@@ -147,34 +144,28 @@ export function CreditsModal({ isOpen, onClose }: CreditsModalProps) {
                             </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Info Footer */}
-                <div className="px-6 pb-6">
+                    {/* Info Footer */}
                     <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
                         <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                        <div className="text-xs text-white/50 leading-relaxed">
+                        <div className="text-[10px] text-white/50 leading-relaxed">
                             <span className="text-amber-400 font-semibold">Development Mode:</span> This is using Cronos Testnet.
                             Tokens have no real value and are for testing purposes only.
                         </div>
                     </div>
                 </div>
 
-                {/* How Credits Work */}
-                <div className="p-6 bg-white/[0.01] border-t border-white/[0.05]">
-                    <h4 className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">How Credits Work</h4>
+                {/* How Credits Work - Fixed/Semi-sticky */}
+                <div className="p-6 bg-white/[0.01] border-t border-white/[0.05] shrink-0">
+                    <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-3">How Credits Work</h4>
                     <div className="space-y-2">
-                        <div className="flex items-center gap-3 text-sm text-white/60">
-                            <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold text-white/40">1</div>
+                        <div className="flex items-center gap-3 text-xs text-white/60">
+                            <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[8px] font-bold text-white/40">1</div>
                             <span>Get {symbol} from the faucet</span>
                         </div>
-                        <div className="flex items-center gap-3 text-sm text-white/60">
-                            <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold text-white/40">2</div>
+                        <div className="flex items-center gap-3 text-xs text-white/60">
+                            <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[8px] font-bold text-white/40">2</div>
                             <span>Your wallet balance = Your credits</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-sm text-white/60">
-                            <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold text-white/40">3</div>
-                            <span>Use credits to subscribe to Premium</span>
                         </div>
                     </div>
                 </div>

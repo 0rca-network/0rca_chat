@@ -221,9 +221,9 @@ export function AnimatedAIChat() {
                                                 </Button>
                                             </DialogTrigger>
 
-                                            <DialogContent className="sm:max-w-xl bg-[#0A0A0B]/95 border-white/10 text-white flex flex-col p-0 overflow-hidden shadow-2xl backdrop-blur-xl rounded-3xl">
-                                                <div className="p-6 pb-2">
-                                                    <div className="flex items-center justify-between mb-6">
+                                            <DialogContent className="sm:max-w-xl max-h-[85vh] bg-[#0A0A0B]/95 border-white/10 text-white flex flex-col p-0 overflow-hidden shadow-2xl backdrop-blur-xl rounded-3xl">
+                                                <div className="p-6 pb-2 shrink-0">
+                                                    <div className="flex items-center justify-between mb-4">
                                                         <DialogTitle className="text-xl font-semibold tracking-tight">Select Agents</DialogTitle>
                                                         <div className="flex items-center gap-3">
                                                             <DialogClose asChild>
@@ -235,59 +235,51 @@ export function AnimatedAIChat() {
                                                         </div>
                                                     </div>
 
-                                                    <div className="mb-6">
-                                                        <div className="flex items-center justify-between mb-3 px-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-sm font-semibold text-white/90">Added ({selectedAgents.length})</span>
-                                                                <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                                                    {selectedAgents.length > 0 && (
+                                                        <div className="mb-4">
+                                                            <div className="flex items-center justify-between mb-2 px-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-sm font-semibold text-white/90">Added ({selectedAgents.length})</span>
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-4 overflow-x-auto py-2 scrollbar-none min-h-[80px]">
-                                                            <AnimatePresence mode="popLayout">
-                                                                {selectedAgents.length === 0 ? (
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0 }}
-                                                                        animate={{ opacity: 1 }}
-                                                                        className="w-full h-16 flex items-center justify-center rounded-2xl border border-dashed border-white/5 bg-white/[0.01]"
-                                                                    >
-                                                                        <span className="text-xs text-white/20">No agents selected yet</span>
-                                                                    </motion.div>
-                                                                ) : (
-                                                                    agents.filter(a => selectedAgents.includes(a.id)).map(agent => (
+                                                            <div className="flex items-center gap-3 overflow-x-auto py-2 scrollbar-none min-h-[60px]">
+                                                                <AnimatePresence mode="popLayout">
+                                                                    {agents.filter(a => selectedAgents.includes(a.id)).map(agent => (
                                                                         <motion.div
                                                                             key={agent.id}
                                                                             layout
-                                                                            initial={{ opacity: 0, scale: 0.8, x: -20 }}
-                                                                            animate={{ opacity: 1, scale: 1, x: 0 }}
-                                                                            exit={{ opacity: 0, scale: 0.8, x: 20 }}
+                                                                            initial={{ opacity: 0, scale: 0.8 }}
+                                                                            animate={{ opacity: 1, scale: 1 }}
+                                                                            exit={{ opacity: 0, scale: 0.8 }}
                                                                             className="relative group flex-shrink-0"
                                                                         >
-                                                                            <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-violet-500/10 to-indigo-500/10 border-2 border-white/10 flex items-center justify-center transition-all group-hover:border-violet-500/50 group-hover:shadow-[0_0_20px_rgba(139,92,246,0.2)]">
-                                                                                <agent.icon className="w-8 h-8 text-white/80 group-hover:text-white transition-colors" />
+                                                                            <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-violet-500/10 to-indigo-500/10 border-2 border-white/10 flex items-center justify-center transition-all group-hover:border-violet-500/50">
+                                                                                <Bot className="w-6 h-6 text-white/80" />
                                                                             </div>
                                                                             <button
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
                                                                                     toggleAgent(agent.id);
                                                                                 }}
-                                                                                className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-[#1A1A1B] border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-[#2A2A2B] transition-all hover:scale-110 shadow-lg"
+                                                                                className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#1A1A1B] border border-white/10 flex items-center justify-center text-white/60 hover:text-white shadow-lg"
                                                                             >
-                                                                                <X size={12} strokeWidth={3} />
+                                                                                <X size={10} strokeWidth={3} />
                                                                             </button>
                                                                         </motion.div>
-                                                                    ))
-                                                                )}
-                                                            </AnimatePresence>
+                                                                    ))}
+                                                                </AnimatePresence>
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                    )}
 
-                                                    <div className="flex items-center justify-between mb-4 px-1">
-                                                        <span className="text-sm font-semibold text-white/60">Agents ({agents.length})</span>
-                                                        <div className="relative w-full max-w-[240px]">
+                                                    <div className="flex items-center justify-between mb-2 px-1 gap-4">
+                                                        <span className="text-sm font-semibold text-white/60 whitespace-nowrap">Agents ({agents.length})</span>
+                                                        <div className="relative w-full">
                                                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                                                             <Input
                                                                 placeholder="Search Agents"
-                                                                className="bg-white/[0.03] border-white/5 rounded-xl pl-9 pr-4 h-9 text-sm focus-visible:ring-violet-500/50 transition-all placeholder:text-white/20"
+                                                                className="bg-white/[0.03] border-white/5 rounded-xl pl-9 pr-4 h-9 text-sm focus-visible:ring-violet-500/50 placeholder:text-white/20"
                                                                 value={searchQuery}
                                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                             />
@@ -295,7 +287,7 @@ export function AnimatedAIChat() {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex-1 overflow-y-auto px-4 pb-6 scrollbar-thin scrollbar-thumb-white/10">
+                                                <div className="flex-1 overflow-y-auto px-4 pb-6 custom-scrollbar">
                                                     <div className="space-y-1">
                                                         {agents.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase())).map((agent) => {
                                                             const isSelected = selectedAgents.includes(agent.id);

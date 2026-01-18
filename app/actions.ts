@@ -126,7 +126,10 @@ export async function saveMessage(chatId: string, role: "user" | "assistant", co
 export async function executeOrchestration(
     prompt: string,
     mode: "auto" | "manual",
-    selectedAgentIds: string[]
+    selectedAgentIds: string[],
+    userAddress?: string,
+    paymentSignature?: string,
+    paymentTaskId?: string
 ): Promise<string> {
     try {
         const supabase = createSupabaseClient();
@@ -137,8 +140,11 @@ export async function executeOrchestration(
         const result = await orchestrator.execute({
             prompt,
             mode,
-            selectedAgentIds
-        });
+            selectedAgentIds,
+            userAddress,
+            paymentSignature,
+            paymentTaskId
+        } as any);
         console.log(`[Action] Orchestration complete. Result length: ${result.length}`);
 
         return result;

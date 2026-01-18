@@ -124,9 +124,9 @@ export function PremiumModal({ isOpen, onClose }: PremiumModalProps) {
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-4xl bg-[#0A0A0B] border-white/10 text-white p-0 overflow-hidden rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-                {/* Header */}
-                <div className="relative p-8 pb-4">
+            <DialogContent className="sm:max-w-4xl bg-[#0A0A0B] border-white/10 text-white p-0 overflow-hidden rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col max-h-[90vh]">
+                {/* Header - Fixed */}
+                <div className="relative p-8 pb-4 shrink-0">
                     <div className="absolute top-0 left-0 w-full h-40 overflow-hidden z-0">
                         <div className="absolute inset-0 bg-gradient-to-br from-violet-500/20 via-transparent to-amber-500/10" />
                     </div>
@@ -176,9 +176,9 @@ export function PremiumModal({ isOpen, onClose }: PremiumModalProps) {
                     </div>
                 </div>
 
-                {/* Plans Grid */}
-                <div className="px-8 pb-6">
-                    <div className="grid grid-cols-3 gap-4">
+                {/* Plans Grid - Scrollable */}
+                <div className="flex-1 overflow-y-auto px-8 pb-6 scrollbar-thin scrollbar-thumb-white/10">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {PLANS.map((plan) => {
                             const planPrice = getPrice(plan.priceUSDC);
                             const canAfford = rawBalance >= BigInt(planPrice * 1_000_000);
@@ -196,8 +196,8 @@ export function PremiumModal({ isOpen, onClose }: PremiumModalProps) {
                                     )}
                                 >
                                     {plan.popular && (
-                                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                            <span className="text-[10px] px-3 py-1 rounded-full bg-violet-500 text-white font-bold uppercase flex items-center gap-1">
+                                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+                                            <span className="text-[10px] px-3 py-1 rounded-full bg-violet-500 text-white font-bold uppercase flex items-center gap-1 whitespace-nowrap">
                                                 <Star className="w-3 h-3" /> Most Popular
                                             </span>
                                         </div>
@@ -246,8 +246,8 @@ export function PremiumModal({ isOpen, onClose }: PremiumModalProps) {
                     </div>
                 </div>
 
-                {/* Action Footer */}
-                <div className="p-6 bg-white/[0.01] border-t border-white/[0.05]">
+                {/* Action Footer - Fixed */}
+                <div className="p-6 bg-white/[0.01] border-t border-white/[0.05] shrink-0">
                     {!walletAddress ? (
                         <Button
                             onClick={connect}
@@ -265,7 +265,7 @@ export function PremiumModal({ isOpen, onClose }: PremiumModalProps) {
                                 Get {symbol} from Faucet
                                 <ExternalLink className="w-4 h-4 ml-2" />
                             </Button>
-                            <p className="text-center text-white/40 text-xs">
+                            <p className="text-center text-white/40 text-[10px]">
                                 You need {currentPrice} {symbol} but have {formattedBalance} {symbol}
                             </p>
                         </div>
@@ -289,8 +289,8 @@ export function PremiumModal({ isOpen, onClose }: PremiumModalProps) {
                             )}
                         </Button>
                     )}
-                    <p className="text-center text-white/30 text-[10px] mt-3">
-                        Payments in {symbol} on Cronos Testnet • Development Mode
+                    <p className="text-center text-white/30 text-[10px] mt-3 uppercase tracking-widest">
+                        Payments in {symbol} on Cronos Testnet
                     </p>
                 </div>
             </DialogContent>

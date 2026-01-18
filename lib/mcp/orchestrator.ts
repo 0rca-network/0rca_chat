@@ -1,13 +1,20 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { generateText, tool } from "ai";
+import { ethers } from "ethers";
 import { z } from "zod";
 import { createMistralClient } from "./clients/mistral";
-import { createFundedTask, signPaymentChallenge } from "../evm/vaultClient";
+import { createFundedTask, signPaymentChallenge, getUSDCBalance, settleFundedTask } from "../evm/vaultClient";
+
+// Bypass self-signed certificate errors for agent communication
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 interface OrchestrationInput {
     prompt: string;
     mode: "auto" | "manual";
     selectedAgentIds: string[];
+    userAddress?: string;
+    paymentSignature?: string;
+    paymentTaskId?: string;
 }
 
 interface Agent {
@@ -26,7 +33,7 @@ export class Orchestrator {
     ) { }
 
     async execute(input: OrchestrationInput): Promise<string> {
-        const { prompt, mode, selectedAgentIds } = input;
+        const { prompt, mode, selectedAgentIds, userAddress, paymentSignature, paymentTaskId } = input;
 
         // Fetch all available agents from DB
         let allAgents: Agent[] = [];
@@ -48,7 +55,6 @@ export class Orchestrator {
             if (selectedAgentIds && selectedAgentIds.length > 0) {
                 activeAgents = allAgents.filter((a) => selectedAgentIds.includes(a.id));
             }
-            // If no agents selected in manual mode, we still proceed but with no agent tools
         } else {
             // Auto mode: let the LLM decide which agents to use (or none)
             if (allAgents.length > 0) {
@@ -56,8 +62,7 @@ export class Orchestrator {
             }
         }
 
-        // Always proceed to the LLM - agents are optional tools
-        return await this.runSwarmWithVercelSDK(prompt, activeAgents);
+        return await this.runSwarmWithVercelSDK(prompt, activeAgents, userAddress, paymentSignature, paymentTaskId);
     }
 
     private async selectAgentsAutomatically(prompt: string, agents: Agent[]): Promise<Agent[]> {
@@ -66,8 +71,11 @@ export class Orchestrator {
             .join("\n");
 
         const selectionPrompt = `
-You are an expert orchestrator. Given the user task and a list of available agents, select the most relevant agents to handle the task.
-Return ONLY a JSON array of agent IDs.
+You are 0rca, the expert orchestrator. Your job is to select the BEST agents for the user's task.
+IMPORTANT: 
+- If the user asks for "security analysis", "deep dive", or "agent processing", you MUST select specialized agents (like MySovereignAgent).
+- DO NOT try to handle complex logic yourself; DELEGATE to agents.
+- Return ONLY a JSON array of agent IDs.
 
 User Task: "${prompt}"
 
@@ -76,147 +84,221 @@ ${agentDescriptions}
 `;
 
         const { text } = await generateText({
-            model: this.mistral("mistral-small-latest"),
+            model: this.mistral("mistral-large-latest"),
             prompt: selectionPrompt,
         });
 
         try {
-            const cleanedText = text.replace(/```json\n?|\n?```/g, "").trim();
-            const result = JSON.parse(cleanedText);
-            const ids: string[] = Array.isArray(result) ? result : result.agentIds || [];
-            return agents.filter((a) => ids.includes(a.id));
+            // 1. Isolate the array part
+            const jsonStart = text.indexOf('[');
+            const jsonEnd = text.lastIndexOf(']');
+
+            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd >= jsonStart) {
+                let jsonStr = text.substring(jsonStart, jsonEnd + 1);
+
+                // 2. Aggressively strip comments and potential trailing content
+                jsonStr = jsonStr
+                    .replace(/\/\/.*$/gm, "") // Strip // comments
+                    .replace(/\/\*[\s\S]*?\*\//g, "") // Strip /* */ comments
+                    .replace(/,(\s*[\]}])/g, "$1"); // Strip trailing commas
+
+                console.log(`[Orchestrator] Attempting to parse cleaned JSON: ${jsonStr}`);
+                const ids = JSON.parse(jsonStr);
+
+                if (Array.isArray(ids)) {
+                    const filtered = agents.filter((a) => ids.includes(a.id));
+                    if (filtered.length > 0) return filtered;
+                }
+            }
+
+            // Fallback: If no IDs matched but we have agents, just return the first one or all
+            console.log("[Orchestrator] No matching agents found in JSON, using fallback.");
+            return agents.length > 0 ? [agents[0]] : [];
+
         } catch (e) {
-            console.error("Failed to parse agent selection", e);
-            return agents.slice(0, 3);
+            console.error("Failed to parse agent selection. LLM said:", text, e);
+            // Default to all agents if it fails, ensuring the user isn't blocked
+            return agents;
         }
     }
 
-    private async runSwarmWithVercelSDK(prompt: string, agents: Agent[]): Promise<string> {
+    private async runSwarmWithVercelSDK(prompt: string, agents: Agent[], userAddress?: string, paymentSignature?: string, paymentTaskId?: string): Promise<string> {
         // Define mock tools
         const mockTools: any = {
-            getWeather: tool({
-                description: "Get the current weather for a specific location",
-                parameters: z.object({
-                    location: z.string().describe("The city and country, e.g., San Francisco, USA"),
-                }),
-                execute: async ({ location }: { location: string }) => {
-                    console.log(`[Mock Tool] Fetching weather for ${location}...`);
-                    return `The weather in ${location} is currently 72°F and sunny. (Mock Data)`;
-                },
-            }),
-            searchWeb: tool({
-                description: "Search the web for information",
-                parameters: z.object({
-                    query: z.string().describe("The search query"),
-                }),
-                execute: async ({ query }: { query: string }) => {
-                    console.log(`[Mock Tool] Searching web for "${query}"...`);
-                    return `Top result for "${query}": Mistral AI is integrated with Vercel AI SDK. (Mock Data)`;
-                },
-            }),
-            getStockPrice: tool({
-                description: "Get the current stock price for a symbol",
-                parameters: z.object({
-                    symbol: z.string().describe("The stock ticker symbol, e.g., AAPL"),
-                }),
-                execute: async ({ symbol }: { symbol: string }) => {
-                    console.log(`[Mock Tool] Fetching stock price for ${symbol}...`);
-                    return `The current price of ${symbol} is $150.00. (Mock Data)`;
-                },
-            }),
+            getBalances: tool({
+                description: "Get the current USDC balances for the orchestrator and vault. Use this to provide context BEFORE calling agents.",
+                parameters: z.object({}),
+                execute: (async ({ }) => {
+                    const orchAddress = new ethers.Wallet(process.env.ORCHESTRATOR_PRIVATE_KEY!).address;
+                    const vaultAddress = "0xe7bad567ed213efE7Dd1c31DF554461271356F30";
+                    try {
+                        const orchBalance = await getUSDCBalance(orchAddress);
+                        const vaultBalance = await getUSDCBalance(vaultAddress);
+                        const res = `Orchestrator USDC: ${orchBalance}, Vault USDC: ${vaultBalance}`;
+                        console.log(`[System Tool] getBalances result: ${res}`);
+                        return res;
+                    } catch (e: any) {
+                        console.error(`[System Tool] getBalances error: ${e.message}`);
+                        return "Failed to fetch real balances.";
+                    }
+                }) as any
+            } as any)
         };
 
-        // Dynamically add "agent tools" that call the agents' personas
         const agentTools: Record<string, any> = {};
         for (const agent of agents) {
             const toolName = `call_${agent.name.replace(/[^a-zA-Z0-9_]/g, "_").toLowerCase()}`;
             agentTools[toolName] = tool({
-                description: agent.description || `Call the ${agent.name} agent`,
+                description: agent.description || `Specialized agent tool for ${agent.name}.`,
                 parameters: z.object({
-                    task: z.string().describe(`Task for the ${agent.name} agent`),
+                    task: z.string().describe(`A detailed description of the task for ${agent.name}. REQUIRED.`),
                 }),
-                execute: async ({ task }: { task: string }) => {
-                    console.log(`[Agent Tool] Calling agent ${agent.name} with task: ${task}`);
-                    return await this.executeAgent(agent, task);
-                },
-            });
+                execute: (async ({ task }: { task: string }) => {
+                    const finalTask = task && task !== "undefined" ? task : prompt;
+                    console.log(`[Agent Tool] Calling agent ${agent.name} with task: ${finalTask}`);
+                    return await this.executeAgent(agent, finalTask, userAddress, paymentSignature, paymentTaskId);
+                }) as any,
+            } as any);
         }
 
-        console.log(`[Orchestrator] Running generateText with ${agents.length} agents...`);
-        const { text, toolCalls, toolResults } = await generateText({
+        console.log(`[Orchestrator] Running generateText with agents: ${agents.map(a => a.name).join(', ')}`);
+        console.log(`[Orchestrator] Available Tools: ${Object.keys({ ...mockTools, ...agentTools }).join(', ')}`);
+        const { text, toolResults } = await generateText({
             model: this.mistral("mistral-large-latest"),
-            system: `You are 0rca, a helpful and intelligent AI assistant.
-- Answer user questions directly when you can.
-- You have access to specialized agents (via call_[agent_name] tools) that can help with specific tasks.
-- You also have general tools like getWeather, searchWeb, and getStockPrice.
-- IMPORTANT: When a tool or agent returns a result, you MUST summarize it for the USER in your final response. Do not be silent.
-- Be concise, professional, and friendly.`,
+            system: `You are 0rca, the master orchestrator of the 0rca Network.
+Your goal is to provide deep, analytical insights by coordinating specialized agents.
+
+REQUIRED WORKFLOW:
+1. For any complex task (security analysis, protocol deep dive, financial auditing), you MUST delegate to the specialized agent tools.
+2. If the user asks to "analyze security", you MUST call 'call_mysovereignagent' or similar. 
+3. DO NOT attempt to answer security or technical questions yourself.
+4. If an agent tool returns a string containing "CHALLENGE_REQUIRED", stop immediately.
+5. Provide a technical, professional, and VERY DETAILED summary in Markdown of all agent findings. 
+6. DO NOT be concise. If an agent performs an audit, INCLUDE their key findings and technical details in your response. 
+7. If you have the report, PRESENT it clearly.`,
             prompt: prompt,
             tools: { ...mockTools, ...agentTools },
-            maxSteps: 5,
+            maxSteps: 10,
+            onStepFinish: ({ toolCalls, toolResults }: any) => {
+                if (toolCalls && toolCalls.length > 0) {
+                    console.log(`[Orchestrator] Step finished with ${toolCalls.length} tool calls.`);
+                    toolResults?.forEach((r: any) => {
+                        const res = r.result || r.output || r.data;
+                        console.log(`[Orchestrator] Tool "${r.toolName}" returned ${res ? (typeof res === 'string' ? res.length : 'JSON') : 'nothing'} characters.`);
+                    });
+                }
+            },
+            maxTokens: 8192,
         } as any);
 
-        console.log(`[Orchestrator] generateText finished. Tool calls: ${toolCalls?.length || 0}`);
         if (toolResults && toolResults.length > 0) {
-            console.log(`[Orchestrator] Tool results received: ${toolResults.length}`);
+            console.log(`[Orchestrator] Inspecting ${toolResults.length} tool results for signals...`);
+            for (const result of (toolResults as any[])) {
+                const resContent = result?.result || result?.output || result?.data;
+
+                if (typeof resContent === 'string' && resContent.includes("CHALLENGE_REQUIRED")) {
+                    console.log(`[Orchestrator] Detected signal in tool results, returning it to frontend.`);
+                    return resContent.includes("__SIGNAL__:") ? resContent : `__SIGNAL__:${resContent}`;
+                }
+            }
         }
 
-        return text;
+        let finalResponse = text;
+
+        // Robust Fallback: If the LLM was too concise despite getting a large report, append the report.
+        if (toolResults && toolResults.length > 0) {
+            const agentResults = (toolResults as any[]).filter(r => r.toolName.startsWith('call_'));
+            if (agentResults.length > 0) {
+                const totalAgentResultLength = agentResults.reduce((acc, r) => acc + (r.result?.length || 0), 0);
+                if (finalResponse && finalResponse.length < 500 && totalAgentResultLength > 1000) {
+                    console.log(`[Orchestrator] LLM was too brief (${finalResponse.length} chars). Appending agent reports...`);
+                    finalResponse += "\n\n----- \n### Detailed Agent Findings\n";
+                    for (const r of agentResults) {
+                        const agentName = r.toolName.replace('call_', '');
+                        const res = r.result || r.output || r.data;
+                        finalResponse += `\n#### Report from ${agentName}:\n${res}\n`;
+                    }
+                }
+            }
+        }
+
+        if (!finalResponse || finalResponse.trim() === "") {
+            console.log("[Orchestrator] Text generation returned empty. Checking for tool results...");
+            if (toolResults && toolResults.length > 0) {
+                const agentResults = (toolResults as any[]).filter(r => r.toolName.startsWith('call_'));
+                if (agentResults.length > 0) {
+                    console.log(`[Orchestrator] Using ${agentResults.length} raw agent results as fallback.`);
+                    finalResponse = "### Orchestration Summary\nI've gathered the following reports from the agents:\n\n";
+                    for (const r of agentResults) {
+                        const agentName = r.toolName.replace('call_', '');
+                        const res = r.result || r.output || r.data;
+                        finalResponse += `#### ${agentName} Response\n${res}\n\n`;
+                    }
+                } else {
+                    finalResponse = "### Orchestration Summary\nI encountered issues communicating with some agents:\n\n";
+                    for (const r of (toolResults as any[])) {
+                        const res = r.result || r.output || r.data;
+                        if (typeof res === 'string' && res.startsWith("Error")) {
+                            finalResponse += `- **${r.toolName}**: ${res}\n`;
+                        }
+                    }
+                    finalResponse += "\n\nPlease ensure your agents are running or check the system logs.";
+                }
+            } else {
+                finalResponse = "I encountered an issue generating the final report. Please try re-prompting for a summary.";
+            }
+        }
+
+        console.log(`[Orchestrator] Final Response Text (length: ${finalResponse.length})`);
+        return finalResponse;
     }
 
-    private async executeAgent(agent: Agent, task: string): Promise<string> {
+    private async executeAgent(agent: Agent, task: string, userAddress?: string, paymentSignature?: string, paymentTaskId?: string): Promise<string> {
         if (!task || task === "undefined") {
-            task = "Please analyze the security status.";
+            task = "Please process the request.";
         }
         console.log(`[Orchestrator] Request to execute using agent: ${agent.name} with task: ${task}`);
 
-        // HARDCODED MAPPING FOR DEMO
-        // In production, this would come from the 'agents' table or IdentityRegistry
         let endpoint = "";
         let vaultAddress = "";
 
-        // Check if this is our deployed agent
-        // Assuming the agent in DB is named "MySovereignAgent" or created as such
-        // If not found, we can default to using the live URL for ANY agent for this demo
-        // endpoint = "https://agent-7a31b8c0.0rca.live/agent";
-        // vaultAddress = "0xe7bad567ed213efE7Dd1c31DF554461271356F30"; 
-
-        // For robustness, let's use it if the agent name matches or if we force it
-        // Or better yet, we can try to fetch it if we had metadata.
-        // For now, I will assume ANY agent execution for "MySovereignAgent" goes there.
-
         if (agent.subdomain) {
             endpoint = `https://${agent.subdomain}.0rca.live/agent`;
-            // Default vault for demo, in prod this could be in DB too
-            vaultAddress = "0xe7bad567ed213efE7Dd1c31DF554461271356F30";
-        } else if (agent.name.trim() === "MySovereignAgent" || agent.name.includes("Sovereign")) {
-            endpoint = "https://agent-7d95b47a.0rca.live/agent";
             vaultAddress = "0xe7bad567ed213efE7Dd1c31DF554461271356F30";
         }
 
         if (!endpoint) {
-            console.log(`[Orchestrator] No endpoint found for ${agent.name}, using Mock LLM.`);
+            const systemPrompt = agent.system_prompt || (agent as any).configuration?.role || `You are the ${agent.name} agent.`;
             const { text } = await generateText({
                 model: this.mistral("mistral-small-latest"),
-                system: agent.system_prompt || `You are the ${agent.name} agent.`,
+                system: systemPrompt,
                 prompt: task,
             });
             return text;
         }
 
         try {
-            // 2. Fund Task
-            console.log(`[Orchestrator] Funding task via Sovereign Vault...`);
-            const taskId = await createFundedTask(vaultAddress, "0.1");
-            console.log(`[Orchestrator] Task Funded: ${taskId}`);
+            // CRITICAL: Reuse the taskId if we are continuing a payment flow
+            let taskId = paymentTaskId;
 
-            // 3. Call Agent
-            console.log(`[Orchestrator] Dispatching to Agent...`);
+            if (!taskId) {
+                // For a "User Pays" flow, we generate the ID but DON'T fund it on-chain yet.
+                // The frontend will fund it after receiving the 402 challenge.
+                taskId = ethers.hexlify(ethers.randomBytes(32));
+                console.log(`[Orchestrator] Generated new Task ID for user funding: ${taskId}`);
+            } else {
+                console.log(`[Orchestrator] Reusing Task ID for payment retry: ${taskId}`);
+            }
+
+            console.log(`[Orchestrator] Dispatching to Agent: ${endpoint}`);
             let response = await fetch(endpoint, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-TASK-ID": taskId
+                    "X-TASK-ID": taskId,
+                    "X-USER-ADDRESS": userAddress || "",
+                    // If we have a signature, send it immediately
+                    ...(paymentSignature ? { "X-PAYMENT": paymentSignature } : {})
                 },
                 body: JSON.stringify({
                     prompt: task,
@@ -224,40 +306,66 @@ ${agentDescriptions}
                 })
             });
 
-            // x402 Handshake
+            console.log(`[Orchestrator] Agent HTTP Status: ${response.status}`);
+
             if (response.status === 402) {
                 console.log(`[Orchestrator] Received 402 Payment Required. Handshaking...`);
                 const challenge = response.headers.get("PAYMENT-REQUIRED");
+
                 if (!challenge) {
+                    console.error("[Orchestrator] 402 response missing PAYMENT-REQUIRED header");
                     throw new Error("402 response missing PAYMENT-REQUIRED header");
                 }
+                console.log(`[Orchestrator] Challenge found: ${challenge.substring(0, 50)}...`);
 
-                const signature = await signPaymentChallenge(challenge);
-                console.log(`[Orchestrator] Challenge signed. Re-submitting with X-PAYMENT...`);
-
-                response = await fetch(endpoint, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-TASK-ID": taskId,
-                        "X-PAYMENT": signature
-                    },
-                    body: JSON.stringify({
-                        prompt: task,
-                        taskId: taskId
-                    })
-                });
+                if (paymentSignature && paymentTaskId === taskId) {
+                    console.log(`[Orchestrator] Using provided client signature for X-PAYMENT...`);
+                    response = await fetch(endpoint, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-TASK-ID": taskId,
+                            "X-PAYMENT": paymentSignature,
+                            "X-USER-ADDRESS": userAddress || ""
+                        },
+                        body: JSON.stringify({
+                            prompt: task,
+                            taskId: taskId
+                        })
+                    });
+                } else {
+                    console.log(`[Orchestrator] No valid client signature, bubbling up challenge.`);
+                    const challengeData = {
+                        type: "CHALLENGE_REQUIRED",
+                        challenge,
+                        taskId,
+                        endpoint,
+                        agentName: agent.name
+                    };
+                    return `__SIGNAL__:${JSON.stringify(challengeData)}`;
+                }
             }
 
             if (response.status !== 200) {
                 const errText = await response.text();
-                console.error(`[Orchestrator] Agent Error (${response.status}): ${errText}`);
                 return `Error from Agent: ${response.status} ${errText}`;
             }
 
             const data = await response.json();
-            const result = data.result || JSON.stringify(data);
-            console.log(`[Orchestrator] Agent returned: ${result.substring(0, 100)}...`);
+            const result = data.result || data.content || data.text || JSON.stringify(data);
+            console.log(`[Orchestrator] Agent Result obtained (length: ${result.length})`);
+
+            // NEW: Settle the task on-chain since the agent bot might not have gas
+            if (taskId && vaultAddress) {
+                try {
+                    console.log(`[Orchestrator] Settling task ${taskId} on-chain...`);
+                    await settleFundedTask(vaultAddress, taskId, "0.1");
+                    console.log(`[Orchestrator] Task settlement successful.`);
+                } catch (settleErr: any) {
+                    console.warn(`[Orchestrator] Task settlement failed (this might be okay if agent already spent it):`, settleErr.message);
+                }
+            }
+
             return result;
 
         } catch (e: any) {
