@@ -368,11 +368,15 @@ REQUIRED WORKFLOW:
             // NEW: Settle the task on-chain since the agent bot might not have gas
             if (taskId && vaultAddress) {
                 try {
-                    console.log(`[Orchestrator] Settling task ${taskId} for Agent ${agent.chain_agent_id || 0} on-chain via Kyuso...`);
-                    await settleFundedTaskWithGasStation(vaultAddress, taskId, "0.1", agent.chain_agent_id || 0);
-                    console.log(`[Orchestrator] Task settlement successful.`);
+                    console.log(`[Orchestrator] 💰 Settling payment for Agent "${agent.name}" (On-chain ID: ${agent.chain_agent_id || 0})`);
+                    console.log(`[Orchestrator] Task ID: ${taskId}, Vault: ${vaultAddress}`);
+
+                    const txHash = await settleFundedTask(vaultAddress, taskId, "0.1", agent.chain_agent_id || 0);
+
+                    console.log(`[Orchestrator] ✅ Settlement successful. Tx: ${txHash}`);
                 } catch (settleErr: any) {
-                    console.warn(`[Orchestrator] Task settlement failed (this might be okay if agent already spent it):`, settleErr.message);
+                    console.error(`[Orchestrator] ❌ Task settlement failed for agent "${agent.name}":`, settleErr.message);
+                    console.warn(`[Orchestrator] (This may happen if the agent already claimed the task or budget is empty)`);
                 }
             }
 

@@ -8,14 +8,20 @@ const VAULT_ABI = [
 
 const USDC_ABI = [
     "function approve(address spender, uint256 amount) external returns (bool)",
+    "function balance(address account) external view returns (uint256)",
     "function allowance(address owner, address spender) external view returns (uint256)",
-    "function balanceOf(address account) external view returns (uint256)"
+    "function balanceOf(address) view returns (uint256)"
 ];
 
+/**
+ * Direct settlement using Orchestrator's Gas.
+ * Required because TaskEscrow checks msg.sender == agentOwner.
+ */
 export async function settleFundedTask(
     vaultAddress: string,
     taskId: string,
-    amount: string
+    amount: string,
+    agentId: string | number
 ): Promise<string> {
     const privateKey = process.env.ORCHESTRATOR_PRIVATE_KEY;
     const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL;
@@ -27,15 +33,28 @@ export async function settleFundedTask(
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     const wallet = new ethers.Wallet(privateKey, provider);
     const vaultContract = new ethers.Contract(vaultAddress, VAULT_ABI, wallet);
-
     const amountUnits = ethers.parseUnits(amount, 6); // USDC has 6 decimals
 
-    console.log(`[VaultClient] Settling Task ${taskId} on Vault ${vaultAddress}...`);
-    const tx = await vaultContract.spend(taskId, amountUnits);
-    await tx.wait();
-    console.log(`[VaultClient] Task Settled (Spent): ${tx.hash}`);
+    console.log(`[VaultClient] 💸 Direct Settling Task ${taskId} (Agent ID: ${agentId}, Amount: ${amount} USDC)`);
+    console.log(`[VaultClient] Signer: ${wallet.address}`);
 
-    return tx.hash;
+    try {
+        const tx = await vaultContract.spend(taskId, agentId, amountUnits, {
+            gasLimit: 300000
+        });
+        console.log(`[VaultClient] Transaction Sent: ${tx.hash}. Waiting for confirmation...`);
+
+        const receipt = await tx.wait();
+        if (!receipt || receipt.status === 0) {
+            throw new Error(`Transaction reverted on-chain: ${tx.hash}`);
+        }
+
+        console.log(`[VaultClient] ✅ Settlement Successful in block ${receipt.blockNumber}`);
+        return tx.hash;
+    } catch (err: any) {
+        console.error(`[VaultClient] ❌ Settlement Failed:`, err.message);
+        throw err;
+    }
 }
 
 export async function settleFundedTaskWithGasStation(
@@ -66,14 +85,15 @@ export async function settleFundedTaskWithGasStation(
     const result = await gas.execute({
         to: vaultAddress,
         data: data,
-        gasLimit: BigInt(200000)
+        gasLimit: BigInt(300000)
     });
 
     if (!result.success) {
-        throw new Error(`Kyuso Settle failed: ${result.txHash}`);
+        console.error(`[VaultClient] Kyuso Relay Error. Success: false. TxHash: ${result.txHash || 'N/A'}`);
+        throw new Error(`Kyuso Settle failed: ${result.txHash || 'No TxHash'}`);
     }
 
-    console.log(`[VaultClient] (Gasless-Settle) Success! Tx: ${result.txHash}`);
+    console.log(`[VaultClient] (Gasless-Settle) ✅ Success! Tx: ${result.txHash}`);
     return result.txHash;
 }
 
