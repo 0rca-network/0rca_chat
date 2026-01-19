@@ -23,6 +23,8 @@ interface Agent {
     description: string | null;
     system_prompt: string;
     subdomain?: string;
+    inference_url?: string;
+    chain_agent_id?: number | string | null;
     data_input?: string;
 }
 
@@ -262,9 +264,17 @@ REQUIRED WORKFLOW:
         let endpoint = "";
         let vaultAddress = "";
 
-        if (agent.subdomain) {
-            endpoint = `https://${agent.subdomain}.0rca.live/agent`;
-            vaultAddress = "0xe7bad567ed213efE7Dd1c31DF554461271356F30";
+        if (agent.inference_url) {
+            endpoint = agent.inference_url;
+            if (!endpoint.endsWith('/agent')) {
+                endpoint = endpoint.replace(/\/$/, '') + '/agent';
+            }
+            vaultAddress = "0x4d7fcfE642eDc67cEBe595d1D74E7349A55C3222";
+        } else if (agent.subdomain) {
+            // Clean up subdomain in case it contains the full domain
+            const sub = agent.subdomain.split('.')[0];
+            endpoint = `https://${sub}.0rca.live/agent`;
+            vaultAddress = "0x4d7fcfE642eDc67cEBe595d1D74E7349A55C3222";
         }
 
         if (!endpoint) {
@@ -358,8 +368,8 @@ REQUIRED WORKFLOW:
             // NEW: Settle the task on-chain since the agent bot might not have gas
             if (taskId && vaultAddress) {
                 try {
-                    console.log(`[Orchestrator] Settling task ${taskId} on-chain via Kyuso...`);
-                    await settleFundedTaskWithGasStation(vaultAddress, taskId, "0.1");
+                    console.log(`[Orchestrator] Settling task ${taskId} for Agent ${agent.chain_agent_id || 0} on-chain via Kyuso...`);
+                    await settleFundedTaskWithGasStation(vaultAddress, taskId, "0.1", agent.chain_agent_id || 0);
                     console.log(`[Orchestrator] Task settlement successful.`);
                 } catch (settleErr: any) {
                     console.warn(`[Orchestrator] Task settlement failed (this might be okay if agent already spent it):`, settleErr.message);

@@ -10,7 +10,7 @@ async function main() {
 
     const orchestratorPk = process.env.ORCHESTRATOR_PRIVATE_KEY;
     const agentAddress = "0xbFbbb68118c4d790e4473bE6f24d70a49Fd9B3EC";
-    const usdcAddress = "0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0";
+    const usdcAddress = "0x38Bf87D7281A2F84c8ed5aF1410295f7BD4E20a1";
 
     if (orchestratorPk) {
         const wallet = new ethers.Wallet(orchestratorPk, provider);

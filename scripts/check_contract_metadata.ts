@@ -9,7 +9,7 @@ async function main() {
     ];
 
     const u1 = "0x38Bf87D7281A2F84c8ed5aF1410295f7BD4E20a1";
-    const u2 = "0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0";
+    const u2 = "0x38Bf87D7281A2F84c8ed5aF1410295f7BD4E20a1";
 
     const c1 = new ethers.Contract(u1, abi, provider);
     const c2 = new ethers.Contract(u2, abi, provider);

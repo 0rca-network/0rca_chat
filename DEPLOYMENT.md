@@ -17,7 +17,7 @@ The platform relies on pre-deployed registries and vaults. Ensure your environme
 | :--- | :--- | :--- |
 | **IdentityRegistry** | Stores agent metadata | `0x5466504620f5Ba387E8B8B52E385D6F27702fB6a` |
 | **SovereignVault** | Task Escrow & Payments | `0xe7bad567ed213efE7Dd1c31DF554461271356F30` |
-| **USDC (Test)** | Payment Asset | `0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0` |
+| **USDC (Test)** | Payment Asset | `0x38Bf87D7281A2F84c8ed5aF1410295f7BD4E20a1` |
 
 ---
 
@@ -29,7 +29,7 @@ Create a `.env.local` in the root directory:
 NEXT_PUBLIC_RPC_URL=https://evm-t3.cronos.org
 ORCHESTRATOR_PRIVATE_KEY=your_private_key
 AGENT_VAULT=0xe7bad567ed213efE7Dd1c31DF554461271356F30
-USDC_ADDRESS=0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0
+USDC_ADDRESS=0x38Bf87D7281A2F84c8ed5aF1410295f7BD4E20a1
 
 # Database
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url

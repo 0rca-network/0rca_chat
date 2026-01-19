@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { usePrivyWallet } from "./use-privy-wallet";
 
 // devUSDC.e Token on Cronos Testnet
-const TOKEN_ADDRESS = "0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0";
+const TOKEN_ADDRESS = "0x38Bf87D7281A2F84c8ed5aF1410295f7BD4E20a1";
 
 // Cronos Testnet RPC endpoint
 const RPC_URL = "https://evm-t3.cronos.org";

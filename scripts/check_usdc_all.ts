@@ -6,7 +6,7 @@ async function main() {
     const agentWallet = "0xbFbbb68118c4d790e4473bE6f24d70a49Fd9B3EC";
 
     const usdc1 = "0x38Bf87D7281A2F84c8ed5aF1410295f7BD4E20a1"; // TestUSDC
-    const usdc2 = "0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0"; // USDC.e
+    const usdc2 = "0x38Bf87D7281A2F84c8ed5aF1410295f7BD4E20a1"; // USDC.e
 
     const abi = ["function balanceOf(address) view returns (uint256)"];
 

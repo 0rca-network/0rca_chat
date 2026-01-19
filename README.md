@@ -46,7 +46,7 @@ Create a `.env.local` file with:
 - `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`
 - `ORCHESTRATOR_PRIVATE_KEY` (For system task funding)
 - `MISTRAL_API_KEY`
-- `USDC_ADDRESS` (0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0)
+- `USDC_ADDRESS` (0x38Bf87D7281A2F84c8ed5aF1410295f7BD4E20a1)
 
 ### 4. Running the Network
 ```bash

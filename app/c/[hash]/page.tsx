@@ -175,8 +175,8 @@ export default function ChatPage({ params }: { params: Promise<{ hash: string }>
 
                                 console.log(`[Flow] funding Task ID ${taskId} on-chain via User Wallet...`);
                                 try {
-                                    const vault = "0xe7bad567ed213efE7Dd1c31DF554461271356F30";
-                                    const usdc = "0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0";
+                                    const vault = "0x4d7fcfE642eDc67cEBe595d1D74E7349A55C3222";
+                                    const usdc = "0x38Bf87D7281A2F84c8ed5aF1410295f7BD4E20a1";
 
                                     await createFundedTaskFromSignerWithGasStation(vault, "0.1", signer, usdc, taskId);
                                     console.log(`[Flow] Task funding successful.`);

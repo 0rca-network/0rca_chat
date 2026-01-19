@@ -12,7 +12,7 @@ async function main() {
     if (!orchestratorPk) return;
 
     const wallet = new ethers.Wallet(orchestratorPk, provider);
-    const usdcAddress = "0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0";
+    const usdcAddress = "0x38Bf87D7281A2F84c8ed5aF1410295f7BD4E20a1";
 
     const abi = ["function mint(address to, uint256 amount) public"];
     const usdc = new ethers.Contract(usdcAddress, abi, wallet);
