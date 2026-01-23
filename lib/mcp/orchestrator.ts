@@ -150,44 +150,59 @@ ${agentDescriptions}
         const agentTools: Record<string, any> = {};
         for (const agent of agents) {
             const toolName = `call_${agent.name.replace(/[^a-zA-Z0-9_]/g, "_").toLowerCase()}`;
+            let toolDesc = agent.description || `Specialized agent tool for ${agent.name}. Accesses ${agent.name} capabilities.`;
+
+            // Heuristic to add more context if the description is generic
+            if (agent.name.toLowerCase().includes('crypto') || agent.name.toLowerCase().includes('market')) {
+                toolDesc += " Use this tool for real-time cryptocurrency prices, market data, and blockchain analysis.";
+            }
+
+            console.log(`[Orchestrator] 🔧 Defining tool: "${toolName}" with description: "${toolDesc}"`);
+
             agentTools[toolName] = tool({
-                description: agent.description || `Specialized agent tool for ${agent.name}.`,
+                description: toolDesc,
                 parameters: z.object({
                     task: z.string().describe(`A detailed description of the task for ${agent.name}. REQUIRED.`),
                 }),
                 execute: (async ({ task }: { task: string }) => {
                     const finalTask = task && task !== "undefined" ? task : prompt;
-                    console.log(`[Agent Tool] Calling agent ${agent.name} with task: ${finalTask}`);
+                    console.log(`[Agent Tool] 📞 Calling agent ${agent.name} with task: ${finalTask}`);
                     return await this.executeAgent(agent, finalTask, userAddress, paymentSignature, paymentTaskId);
                 }) as any,
             } as any);
         }
 
-        console.log(`[Orchestrator] Running generateText with agents: ${agents.map(a => a.name).join(', ')}`);
-        console.log(`[Orchestrator] Available Tools: ${Object.keys({ ...mockTools, ...agentTools }).join(', ')}`);
+        console.log(`[Orchestrator] 🐝 Swarm initialized with agents: ${agents.map(a => a.name).join(', ')}`);
+        console.log(`[Orchestrator] 🛠️ Tools available: ${Object.keys({ ...mockTools, ...agentTools }).join(', ')}`);
         const { text, toolResults } = await generateText({
             model: this.mistral("mistral-large-latest"),
             system: `You are 0rca, the master orchestrator of the 0rca Network.
 Your goal is to provide deep, analytical insights by coordinating specialized agents.
 
 REQUIRED WORKFLOW:
-1. For any complex task (security analysis, protocol deep dive, financial auditing), you MUST delegate to the specialized agent tools.
-2. If the user asks to "analyze security", you MUST call 'call_mysovereignagent' or similar. 
-3. DO NOT attempt to answer security or technical questions yourself.
+1. For any complex task (security analysis, protocol deep dive, financial auditing, MARKET DATA, PRICES), you MUST delegate to the specialized agent tools.
+2. If the user asks for "current price", "market data", or "analyze security", you MUST call the relevant agent tool (e.g., 'call_crypto_com_agent'). 
+3. DO NOT attempt to answer technical, financial, or real-time questions yourself. You do not have internet access, but the agents DO.
 4. If an agent tool returns a string containing "CHALLENGE_REQUIRED", stop immediately.
 5. Provide a technical, professional, and VERY DETAILED summary in Markdown of all agent findings. 
-6. DO NOT be concise. If an agent performs an audit, INCLUDE their key findings and technical details in your response. 
+6. DO NOT be concise. If an agent performs an audit or fetch data, INCLUDE their key findings and technical details in your response. 
 7. If you have the report, PRESENT it clearly.`,
             prompt: prompt,
             tools: { ...mockTools, ...agentTools },
             maxSteps: 10,
             onStepFinish: ({ toolCalls, toolResults }: any) => {
                 if (toolCalls && toolCalls.length > 0) {
-                    console.log(`[Orchestrator] Step finished with ${toolCalls.length} tool calls.`);
+                    console.log(`[Orchestrator Swarm] ⚡ Step finished with ${toolCalls.length} tool calls.`);
+                    toolCalls.forEach((call: any) => {
+                        console.log(`[Orchestrator Swarm] 🛠️ TOOL CALL: ${call.toolName}(${JSON.stringify(call.args)})`);
+                    });
                     toolResults?.forEach((r: any) => {
                         const res = r.result || r.output || r.data;
-                        console.log(`[Orchestrator] Tool "${r.toolName}" returned ${res ? (typeof res === 'string' ? res.length : 'JSON') : 'nothing'} characters.`);
+                        const preview = typeof res === 'string' ? (res.length > 150 ? res.substring(0, 150) + "..." : res) : "Complex Data";
+                        console.log(`[Orchestrator Swarm] ✅ Tool "${r.toolName}" result preview: ${preview}`);
                     });
+                } else {
+                    console.log(`[Orchestrator Swarm] ⚠️ Step finished with NO tool calls. LLM decided to respond directly.`);
                 }
             },
             maxTokens: 8192,
@@ -259,7 +274,8 @@ REQUIRED WORKFLOW:
         if (!task || task === "undefined") {
             task = "Please process the request.";
         }
-        console.log(`[Orchestrator] Request to execute using agent: ${agent.name} with task: ${task}`);
+        console.log(`[Orchestrator] 🚀 EXECUTING AGENT: ${agent.name} (${agent.id})`);
+        console.log(`[Orchestrator] Debug Meta: subdomain="${agent.subdomain || 'N/A'}", inference_url="${agent.inference_url || 'N/A'}"`);
 
         let endpoint = "";
         let vaultAddress = "";
@@ -270,11 +286,15 @@ REQUIRED WORKFLOW:
                 endpoint = endpoint.replace(/\/$/, '') + '/agent';
             }
             vaultAddress = "0x4d7fcfE642eDc67cEBe595d1D74E7349A55C3222";
+            console.log(`[Orchestrator] Using inference_url for ${agent.name}: ${endpoint}`);
         } else if (agent.subdomain) {
             // Clean up subdomain in case it contains the full domain
             const sub = agent.subdomain.split('.')[0];
             endpoint = `https://${sub}.0rca.live/agent`;
             vaultAddress = "0x4d7fcfE642eDc67cEBe595d1D74E7349A55C3222";
+            console.log(`[Orchestrator] Resolved subdomain for ${agent.name}: ${endpoint}`);
+        } else {
+            console.warn(`[Orchestrator] Agent ${agent.name} has NO endpoint (subdomain or inference_url). Falling back to internal LLM.`);
         }
 
         if (!endpoint) {
@@ -300,7 +320,10 @@ REQUIRED WORKFLOW:
                 console.log(`[Orchestrator] Reusing Task ID for payment retry: ${taskId}`);
             }
 
-            console.log(`[Orchestrator] Dispatching to Agent: ${endpoint}`);
+            console.log(`[Orchestrator] 🌐 DISPATCH: POST ${endpoint}`);
+            console.log(`[Orchestrator] Headers: X-TASK-ID=${taskId}, X-USER-ADDRESS=${userAddress || 'none'}, X-PAYMENT=${paymentSignature ? 'signature-present' : 'none'}`);
+
+            const start = Date.now();
             let response = await fetch(endpoint, {
                 method: "POST",
                 headers: {
@@ -315,8 +338,9 @@ REQUIRED WORKFLOW:
                     taskId: taskId
                 })
             });
+            const duration = Date.now() - start;
 
-            console.log(`[Orchestrator] Agent HTTP Status: ${response.status}`);
+            console.log(`[Orchestrator] 📥 RESPONSE: Status ${response.status} from ${agent.name} (${duration}ms)`);
 
             if (response.status === 402) {
                 console.log(`[Orchestrator] Received 402 Payment Required. Handshaking...`);

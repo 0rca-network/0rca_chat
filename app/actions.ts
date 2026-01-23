@@ -11,6 +11,8 @@ export interface Agent {
     name: string;
     description: string;
     system_prompt?: string;
+    subdomain?: string;
+    inference_url?: string;
     chain_agent_id?: string | null;
 }
 
