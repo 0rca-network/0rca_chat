@@ -76,6 +76,7 @@ export class Orchestrator {
 You are 0rca, the expert orchestrator. Your job is to select the BEST agents for the user's task.
 IMPORTANT: 
 - If the user asks for "security analysis", "deep dive", or "agent processing", you MUST select specialized agents (like MySovereignAgent).
+- If the user asks for "price", "market", "bitcoin", "crypto", check if there is an agent named like "Crypto..." or "Market..." and SELECT IT.
 - DO NOT try to handle complex logic yourself; DELEGATE to agents.
 - Return ONLY a JSON array of agent IDs.
 
@@ -113,9 +114,10 @@ ${agentDescriptions}
                 }
             }
 
-            // Fallback: If no IDs matched but we have agents, just return the first one or all
-            console.log("[Orchestrator] No matching agents found in JSON, using fallback.");
-            return agents.length > 0 ? [agents[0]] : [];
+            // Fallback: If selection failed or returned empty but we have agents, return ALL agents to be safe
+            // This allows the Swarm logic to decide which tool to call, rather than failing early.
+            console.log("[Orchestrator] Agent selection returned empty or invalid. Falling back to ALL agents.");
+            return agents;
 
         } catch (e) {
             console.error("Failed to parse agent selection. LLM said:", text, e);
@@ -398,6 +400,29 @@ REQUIRED WORKFLOW:
                     const txHash = await settleFundedTask(vaultAddress, taskId, "0.1", agent.chain_agent_id || 0);
 
                     console.log(`[Orchestrator] ✅ Settlement successful. Tx: ${txHash}`);
+
+                    // Record transaction in Supabase
+                    if (userAddress) {
+                        try {
+                            await this.supabase.from("transactions").insert({
+                                wallet_address: userAddress,
+                                agent_id: agent.id,
+                                task_id: taskId,
+                                amount: 0.1, // Hardcoded for now based on settlement call
+                                token_symbol: "USDC",
+                                type: "payment",
+                                status: "completed",
+                                tx_hash: txHash,
+                                metadata: {
+                                    agent_name: agent.name,
+                                    prompt_snippet: task.substring(0, 50)
+                                }
+                            });
+                            console.log(`[Orchestrator] 📝 Transaction recorded in DB.`);
+                        } catch (dbErr) {
+                            console.error(`[Orchestrator] Failed to record transaction DB:`, dbErr);
+                        }
+                    }
                 } catch (settleErr: any) {
                     console.error(`[Orchestrator] ❌ Task settlement failed for agent "${agent.name}":`, settleErr.message);
                     console.warn(`[Orchestrator] (This may happen if the agent already claimed the task or budget is empty)`);
