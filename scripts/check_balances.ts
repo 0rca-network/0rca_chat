@@ -37,7 +37,7 @@ async function main() {
         if (orchestratorBalance > ethers.parseEther("0.5")) {
             if (orchUsdc > ethers.parseUnits("5", 6) && agentUsdc < ethers.parseUnits("1", 6)) {
                 console.log("Sending 5 USDC to Agent for CroGas payments...");
-                const tx = await usdc.connect(wallet).transfer(agentAddress, ethers.parseUnits("5", 6));
+                const tx = await (usdc.connect(wallet) as any).transfer(agentAddress, ethers.parseUnits("5", 6));
                 console.log(`USDC Transfer sent: ${tx.hash}`);
                 await tx.wait();
                 console.log("USDC Transfer confirmed.");

@@ -100,7 +100,7 @@ ${agentDescriptions}
                     console.log(`[Mock Tool] Fetching weather for ${location}...`);
                     return `The weather in ${location} is currently 72°F and sunny. (Mock Data)`;
                 },
-            }),
+            } as any),
             searchWeb: tool({
                 description: "Search the web for information",
                 parameters: z.object({
@@ -110,7 +110,7 @@ ${agentDescriptions}
                     console.log(`[Mock Tool] Searching web for "${query}"...`);
                     return `Top result for "${query}": Mistral AI is integrated with Vercel AI SDK. (Mock Data)`;
                 },
-            }),
+            } as any),
             getStockPrice: tool({
                 description: "Get the current stock price for a symbol",
                 parameters: z.object({
@@ -120,7 +120,7 @@ ${agentDescriptions}
                     console.log(`[Mock Tool] Fetching stock price for ${symbol}...`);
                     return `The current price of ${symbol} is $150.00. (Mock Data)`;
                 },
-            }),
+            } as any),
         };
 
         // Dynamically add "agent tools" that call the agents' personas
@@ -136,7 +136,7 @@ ${agentDescriptions}
                     console.log(`[Agent Tool] Calling agent ${agent.name} with task: ${task}`);
                     return await this.executeAgent(agent, task);
                 },
-            });
+            } as any);
         }
 
         const { text } = await generateText({

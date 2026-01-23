@@ -1,5 +1,5 @@
 import { Wallet, JsonRpcProvider, ethers } from "ethers";
-import { GasStation } from "@crogas/sdk";
+import GasStation from "@kyuso/crogas";
 import * as dotenv from "dotenv";
 import path from "path";
 
