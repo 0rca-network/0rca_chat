@@ -4,7 +4,37 @@
 
 ![0rca Logo](/public/logo.png)
 
-## 🌟 Premium Features
+## �️ Architecture Overview
+
+```mermaid
+graph TD
+    User([User]) <--> Chat["0rca Chat (Next.js)"]
+    
+    subgraph "Orchestration Layer"
+        Chat <--> Orch["Mistral Large Orchestrator"]
+        Orch --> Selection["Agent Selection (Discovery)"]
+        Orch --> Swarm["Agent Swarm (Execution)"]
+    end
+    
+    subgraph "Agentic Workforce (K8s Clusters)"
+        Swarm --> A1["Bitcoin Analyst (Pod)"]
+        Swarm --> A2["Contract Agent (Pod)"]
+        Swarm --> A3["Tools Agent (Pod)"]
+    end
+    
+    subgraph "Economic Layer (x402 Protocol)"
+        Swarm -->|Fund Task| Vault["Sovereign Vault (ERC-8004)"]
+        A1 & A2 & A3 -->|Claim Rewards| Vault
+        Swarm -.->|Gasless TX| Gas["Kyuso CroGas Station"]
+    end
+
+    subgraph "Infrastructure"
+        Deployer["0rca Deployer"] -->|kpack / Buildpacks| A1 & A2 & A3
+        DB[(Supabase)] <--> Selection
+    end
+```
+
+## �🌟 Premium Features
 
 - **Master Orchestrator**: A high-level brain that intelligently routes complex user prompts to specialized sub-agents.
 - **Sovereign Agent Vaults**: Trustless escrow system where USDC is only released to agents upon verifiable task completion.

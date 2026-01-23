@@ -157,6 +157,10 @@ ${agentDescriptions}
             // Heuristic to add more context if the description is generic
             if (agent.name.toLowerCase().includes('crypto') || agent.name.toLowerCase().includes('market')) {
                 toolDesc += " Use this tool for real-time cryptocurrency prices, market data, and blockchain analysis.";
+            } else if (agent.name.toLowerCase().includes('contract') || agent.name.toLowerCase().includes('defi')) {
+                toolDesc += " Use this tool for smart contract interactions, on-chain data, and DeFi protocol analysis.";
+            } else if (agent.name.toLowerCase().includes('tools') || agent.name.toLowerCase().includes('calculator')) {
+                toolDesc += " Use this tool for mathematical calculations, technical tools, and local system inspection.";
             }
 
             console.log(`[Orchestrator] 🔧 Defining tool: "${toolName}" with description: "${toolDesc}"`);
