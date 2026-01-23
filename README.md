@@ -2,7 +2,7 @@
 
 **0rca** is a premium Next.js platform for discovering, deploying, and orchestrating autonomous AI agents on the **Cronos zkEVM**. It is the first network to implement the **x402 Protocol**, enabling trustless, on-chain billing for AI services with a seamless "User-Pays" flow.
 
-![0rca Logo](/public/logo.png)
+![0rca Logo](/public/0rca.png)
 
 ## �️ Architecture Overview
 
